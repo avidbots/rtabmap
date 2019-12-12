@@ -3242,7 +3242,7 @@ void DatabaseViewer::regenerateLocalMaps()
 		{
 			Signature s = data;
 			s.setPose(odomPose);
-			cv::Mat ground, obstacles, empty;
+			cv::Mat ground, obstacles, underground, empty;
 			cv::Point3f viewpoint;
 			timer.ticks();
 
@@ -3282,12 +3282,12 @@ void DatabaseViewer::regenerateLocalMaps()
 						viewpoint = cv::Point3f(t.x(), t.y(), t.z());
 					}
 
-					grid.createLocalMap(LaserScan::backwardCompatibility(util3d::laserScanFromPointCloud(*cloud)), s.getPose(), ground, obstacles, empty, viewpoint);
+					grid.createLocalMap(LaserScan::backwardCompatibility(util3d::laserScanFromPointCloud(*cloud)), s.getPose(), ground, obstacles, underground, empty, viewpoint);
 				}
 			}
 			else
 			{
-				grid.createLocalMap(s, ground, obstacles, empty, viewpoint);
+				grid.createLocalMap(s, ground, obstacles, underground, empty, viewpoint);
 			}
 
 			gridCreationTime = timer.ticks()*1000.0;
@@ -3366,7 +3366,7 @@ void DatabaseViewer::regenerateCurrentLocalMaps()
 		{
 			Signature s = data;
 			s.setPose(odomPose);
-			cv::Mat ground, obstacles, empty;
+			cv::Mat ground, obstacles, underground, empty;
 			cv::Point3f viewpoint;
 
 			if(ui_->checkBox_grid_regenerateFromSavedGrid->isChecked() && s.sensorData().gridCellSize() > 0.0f)
@@ -3405,12 +3405,12 @@ void DatabaseViewer::regenerateCurrentLocalMaps()
 						viewpoint = cv::Point3f(t.x(), t.y(), t.z());
 					}
 
-					grid.createLocalMap(LaserScan::backwardCompatibility(util3d::laserScanFromPointCloud(*cloud)), s.getPose(), ground, obstacles, empty, viewpoint);
+					grid.createLocalMap(LaserScan::backwardCompatibility(util3d::laserScanFromPointCloud(*cloud)), s.getPose(), ground, obstacles, underground, empty, viewpoint);
 				}
 			}
 			else
 			{
-				grid.createLocalMap(s, ground, obstacles, empty, viewpoint);
+				grid.createLocalMap(s, ground, obstacles, underground, empty, viewpoint);
 			}
 
 

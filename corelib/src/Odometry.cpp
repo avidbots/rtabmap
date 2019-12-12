@@ -301,13 +301,13 @@ Transform Odometry::process(SensorData & data, const Transform & guessIn, Odomet
 		{
 			UTimer alignTimer;
 			pcl::IndicesPtr indices(new std::vector<int>);
-			pcl::IndicesPtr ground, obstacles;
+			pcl::IndicesPtr ground, obstacles, underground;
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = util3d::cloudFromSensorData(data, 1, 10, 0, indices.get());
 			bool success = false;
 			if(indices->size())
 			{
 				cloud = util3d::voxelize(cloud, indices, 0.01);
-				util3d::segmentObstaclesFromGround<pcl::PointXYZ>(cloud, ground, obstacles, 20, M_PI/4.0f, 0.02, 200, true);
+				util3d::segmentObstaclesFromGround<pcl::PointXYZ>(cloud, ground, obstacles, underground, 20, M_PI/4.0f, 0.02, 200, true);
 				if(ground->size())
 				{
 					pcl::ModelCoefficients coefficients;

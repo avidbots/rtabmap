@@ -44,6 +44,10 @@ public:
 
 	// Zero by default
 	Transform();
+	Transform(const Transform&) = default;
+	Transform(Transform&&) = default;
+	Transform& operator=(const Transform&) = default;
+	Transform& operator=(Transform&&) = default;
 	// rotation matrix r## and origin o##
 	Transform(float r11, float r12, float r13, float o14,
 		      float r21, float r22, float r23, float o24,
@@ -59,24 +63,24 @@ public:
 
 	Transform clone() const;
 
-	float r11() const {return data()[0];}
-	float r12() const {return data()[1];}
-	float r13() const {return data()[2];}
-	float r21() const {return data()[4];}
-	float r22() const {return data()[5];}
-	float r23() const {return data()[6];}
-	float r31() const {return data()[8];}
-	float r32() const {return data()[9];}
-	float r33() const {return data()[10];}
+	float r11() const noexcept {return data()[0];}
+	float r12() const noexcept {return data()[1];}
+	float r13() const noexcept {return data()[2];}
+	float r21() const noexcept {return data()[4];}
+	float r22() const noexcept {return data()[5];}
+	float r23() const noexcept {return data()[6];}
+	float r31() const noexcept {return data()[8];}
+	float r32() const noexcept {return data()[9];}
+	float r33() const noexcept {return data()[10];}
 
-	float o14() const {return data()[3];}
-	float o24() const {return data()[7];}
-	float o34() const {return data()[11];}
+	float o14() const noexcept {return data()[3];}
+	float o24() const noexcept {return data()[7];}
+	float o34() const noexcept {return data()[11];}
 
-	float & operator[](int index) {return data()[index];}
-	const float & operator[](int index) const {return data()[index];}
-	float & operator()(int row, int col) {return data()[row*4 + col];}
-	const float & operator()(int row, int col) const {return data()[row*4 + col];}
+	float & operator[](int index) noexcept {return data()[index];}
+	const float & operator[](int index) const noexcept {return data()[index];}
+	float & operator()(int row, int col) noexcept {return data()[row*4 + col];}
+	const float & operator()(int row, int col) const noexcept {return data()[row*4 + col];}
 
 	bool isNull() const;
 	bool isIdentity() const;
@@ -84,10 +88,10 @@ public:
 	void setNull();
 	void setIdentity();
 
-	const cv::Mat & dataMatrix() const {return data_;}
-	const float * data() const {return (const float *)data_.data;}
-	float * data() {return (float *)data_.data;}
-	int size() const {return 12;}
+	const cv::Mat & dataMatrix() const noexcept {return data_;}
+	const float * data() const noexcept {return (const float *)data_.data;}
+	float * data() noexcept {return (float *)data_.data;}
+	int size() const noexcept {return 12;}
 
 	float & x() {return data()[3];}
 	float & y() {return data()[7];}
@@ -171,8 +175,12 @@ public:
 		transform_(transform),
 		stamp_(stamp)
 	{}
-	const Transform & transform() const {return transform_;}
-	const double & stamp() const {return stamp_;}
+	TransformStamped(const TransformStamped&) = default;
+	TransformStamped(TransformStamped&&) = default;
+	TransformStamped& operator=(const TransformStamped&) = default;
+	TransformStamped& operator=(TransformStamped&&) = default;
+	const Transform & transform() const noexcept {return transform_;}
+	const double & stamp() const noexcept {return stamp_;}
 
 private:
 	Transform transform_;

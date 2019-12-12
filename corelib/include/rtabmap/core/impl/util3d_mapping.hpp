@@ -28,6 +28,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef UTIL3D_MAPPING_HPP_
 #define UTIL3D_MAPPING_HPP_
 
+#include <boost/make_shared.hpp>
+
 #include <rtabmap/core/util3d_filtering.h>
 #include <rtabmap/core/util3d.h>
 #include <pcl/common/common.h>
@@ -41,7 +43,7 @@ template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr projectCloudOnXYPlane(
 		const typename pcl::PointCloud<PointT> & cloud)
 {
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	*output = cloud;
 	for(unsigned int i=0; i<output->size(); ++i)
 	{
@@ -52,28 +54,31 @@ typename pcl::PointCloud<PointT>::Ptr projectCloudOnXYPlane(
 
 template<typename PointT>
 void segmentObstaclesFromGround(
-		const typename pcl::PointCloud<PointT>::Ptr & cloud,
-		const typename pcl::IndicesPtr & indices,
-		pcl::IndicesPtr & ground,
-		pcl::IndicesPtr & obstacles,
+		const typename pcl::PointCloud<PointT>::Ptr& cloud,
+		const typename pcl::IndicesPtr& indices,
+		pcl::IndicesPtr& ground,
+		pcl::IndicesPtr& obstacles,
+		pcl::IndicesPtr& underground,
 		int normalKSearch,
 		float groundNormalAngle,
 		float clusterRadius,
 		int minClusterSize,
 		bool segmentFlatObstacles,
 		float maxGroundHeight,
-		pcl::IndicesPtr * flatObstacles,
-		const Eigen::Vector4f & viewPoint)
+		pcl::IndicesPtr* flatObstacles,
+		const Eigen::Vector4f& viewPoint)
 {
-	ground.reset(new std::vector<int>);
-	obstacles.reset(new std::vector<int>);
-	if(flatObstacles)
-	{
-		flatObstacles->reset(new std::vector<int>);
+	Eigen::Vector4f minGround;
+	Eigen::Vector4f maxGround;
+
+	ground = boost::make_shared<std::vector<int>>();
+	obstacles = boost::make_shared<std::vector<int>>();
+	underground = boost::make_shared<std::vector<int>>();
+	if (flatObstacles) {
+		*flatObstacles = boost::make_shared<std::vector<int>>();
 	}
 
-	if(cloud->size())
-	{
+	if (cloud->size()) {
 		// Find the ground
 		pcl::IndicesPtr flatSurfaces = normalFiltering(
 				cloud,
@@ -82,9 +87,9 @@ void segmentObstaclesFromGround(
 				Eigen::Vector4f(0,0,1,0),
 				normalKSearch,
 				viewPoint);
+		UINFO("AVIDBOTS: segmentFlatObstacles=%d flatSurfaces->size=%llu", segmentFlatObstacles?1:0, flatSurfaces->size());
 
-		if(segmentFlatObstacles && flatSurfaces->size())
-		{
+		if (segmentFlatObstacles && flatSurfaces->size()) {
 			int biggestFlatSurfaceIndex;
 			std::vector<pcl::IndicesPtr> clusteredFlatSurfaces = extractClusters(
 					cloud,
@@ -93,69 +98,82 @@ void segmentObstaclesFromGround(
 					minClusterSize,
 					std::numeric_limits<int>::max(),
 					&biggestFlatSurfaceIndex);
+			UINFO("AVIDBOTS: biggestFlatSurfaceIndex=%d", biggestFlatSurfaceIndex);
+			UINFO("AVIDBOTS: clusteredFlatSurfaces.size=%llu", clusteredFlatSurfaces.size());
 
 			// cluster all surfaces for which the centroid is in the Z-range of the bigger surface
-			if(clusteredFlatSurfaces.size())
-			{
+			if (clusteredFlatSurfaces.size()) {
 				ground = clusteredFlatSurfaces.at(biggestFlatSurfaceIndex);
-				Eigen::Vector4f min,max;
+				Eigen::Vector4f& min = minGround;
+				Eigen::Vector4f& max = maxGround;
 				pcl::getMinMax3D(*cloud, *clusteredFlatSurfaces.at(biggestFlatSurfaceIndex), min, max);
 
-				if(maxGroundHeight == 0.0f || min[2] < maxGroundHeight)
-				{
-					for(unsigned int i=0; i<clusteredFlatSurfaces.size(); ++i)
-					{
-						if((int)i!=biggestFlatSurfaceIndex)
-						{
+				if (maxGroundHeight == 0.0f || min[2] < maxGroundHeight) {
+					for(unsigned int i=0; i<clusteredFlatSurfaces.size(); ++i) {
+						// XXX: AVIDBOTS BEGIN
+						if (false) {
 							Eigen::Vector4f centroid(0,0,0,1);
 							pcl::compute3DCentroid(*cloud, *clusteredFlatSurfaces.at(i), centroid);
-							if(maxGroundHeight==0.0f || centroid[2] <= maxGroundHeight || centroid[2] <= max[2]) // epsilon
-							{
+
+							Eigen::Vector4f mn, mx;
+							pcl::getMinMax3D(*cloud, *clusteredFlatSurfaces.at(i), mn, mx);
+							// if (mn[2] <= -0.08) {
+								std::ostringstream oss;
+								oss << "mn=" << mn.transpose() << " mx=" << mx.transpose() << " centroid=" << centroid.transpose();
+								UINFO("AVIDBOTS: cliff segment: %s, size=%u",
+											oss.str().c_str(), clusteredFlatSurfaces.at(i)->size());
+							// }
+						}
+						// XXX: AVIDBOTS END
+
+						if ((int)i != biggestFlatSurfaceIndex)
+						{
+							Eigen::Vector4f centroid(0, 0, 0, 1);
+							pcl::compute3DCentroid(*cloud, *clusteredFlatSurfaces.at(i), centroid);
+
+							if (maxGroundHeight==0.0f || centroid[2] <= maxGroundHeight || centroid[2] <= max[2]) { // epsilon
+								UINFO("AVIDBOTS: i=%u: concatenate ground", i);
 								ground = util3d::concatenate(ground, clusteredFlatSurfaces.at(i));
-							}
-							else if(flatObstacles)
-							{
+							} else if (flatObstacles) {
+								UINFO("AVIDBOTS: i=%u: concatenate obstacles", i);
 								*flatObstacles = util3d::concatenate(*flatObstacles, clusteredFlatSurfaces.at(i));
 							}
 						}
 					}
-				}
-				else
-				{
+				} else {
 					// reject ground!
-					ground.reset(new std::vector<int>);
-					if(flatObstacles)
-					{
+					ground = boost::make_shared<std::vector<int>>();
+					if (flatObstacles) {
 						*flatObstacles = flatSurfaces;
 					}
 				}
 			}
-		}
-		else
-		{
+		} else {
 			ground = flatSurfaces;
 		}
 
-		if(ground->size() != cloud->size())
-		{
+		if (ground->size() != cloud->size()) {
 			// Remove ground
 			pcl::IndicesPtr notObstacles = ground;
-			if(indices->size())
-			{
+			if (indices->size()) {
 				notObstacles = util3d::extractIndices(cloud, indices, true);
 				notObstacles = util3d::concatenate(notObstacles, ground);
 			}
 			pcl::IndicesPtr otherStuffIndices = util3d::extractIndices(cloud, notObstacles, true);
-
+			pcl::IndicesPtr undergroundStuffIndices;
 			// If ground height is set, remove obstacles under it
-			if(maxGroundHeight != 0.0f)
-			{
+			if (maxGroundHeight != 0.0f) {
+				undergroundStuffIndices = rtabmap::util3d::passThrough(cloud, otherStuffIndices, "z", std::numeric_limits<float>::lowest(), maxGroundHeight);
 				otherStuffIndices = rtabmap::util3d::passThrough(cloud, otherStuffIndices, "z", maxGroundHeight, std::numeric_limits<float>::max());
+			} else {
+				undergroundStuffIndices = rtabmap::util3d::passThrough(cloud, otherStuffIndices, "z", std::numeric_limits<float>::lowest(), minGround[2]);
+				otherStuffIndices = rtabmap::util3d::passThrough(cloud, otherStuffIndices, "z", maxGround[2], std::numeric_limits<float>::max());
 			}
 
-			//Cluster remaining stuff (obstacles)
-			if(otherStuffIndices->size())
-			{
+			// otherStuffIndices = rtabmap::util3d::passThrough(cloud, otherStuffIndices, "z", std::numeric_limits<float>::lowest(), maxGroundHeight, true);
+
+			// Cluster remaining stuff (obstacles)
+			if (otherStuffIndices->size()) {
 				std::vector<pcl::IndicesPtr> clusteredObstaclesSurfaces = util3d::extractClusters(
 						cloud,
 						otherStuffIndices,
@@ -164,6 +182,18 @@ void segmentObstaclesFromGround(
 
 				// merge indices
 				obstacles = util3d::concatenate(clusteredObstaclesSurfaces);
+			}
+
+			// Cluster remaining stuff (obstacles)
+			if (undergroundStuffIndices) {
+				std::vector<pcl::IndicesPtr> clusteredUndergroundSurfaces = util3d::extractClusters(
+						cloud,
+						undergroundStuffIndices,
+						clusterRadius,
+						minClusterSize);
+
+				// merge indices
+				underground = util3d::concatenate(clusteredUndergroundSurfaces);
 			}
 		}
 	}
@@ -174,6 +204,7 @@ void segmentObstaclesFromGround(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		pcl::IndicesPtr & ground,
 		pcl::IndicesPtr & obstacles,
+		pcl::IndicesPtr & underground,
 		int normalKSearch,
 		float groundNormalAngle,
 		float clusterRadius,
@@ -183,12 +214,13 @@ void segmentObstaclesFromGround(
 		pcl::IndicesPtr * flatObstacles,
 		const Eigen::Vector4f & viewPoint)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	segmentObstaclesFromGround<PointT>(
 			cloud,
 			indices,
 			ground,
 			obstacles,
+			underground,
 			normalKSearch,
 			groundNormalAngle,
 			clusterRadius,
@@ -204,12 +236,15 @@ void occupancy2DFromGroundObstacles(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		const pcl::IndicesPtr & groundIndices,
 		const pcl::IndicesPtr & obstaclesIndices,
+		const pcl::IndicesPtr & undergroundIndices,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize)
 {
-	typename pcl::PointCloud<PointT>::Ptr groundCloud(new pcl::PointCloud<PointT>);
-	typename pcl::PointCloud<PointT>::Ptr obstaclesCloud(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr groundCloud = boost::make_shared<pcl::PointCloud<PointT>>();
+	typename pcl::PointCloud<PointT>::Ptr obstaclesCloud = boost::make_shared<pcl::PointCloud<PointT>>();
+	typename pcl::PointCloud<PointT>::Ptr undergroundCloud = boost::make_shared<pcl::PointCloud<PointT>>();
 
 	if(groundIndices->size())
 	{
@@ -221,11 +256,18 @@ void occupancy2DFromGroundObstacles(
 		pcl::copyPointCloud(*cloud, *obstaclesIndices, *obstaclesCloud);
 	}
 
+	if(undergroundIndices->size())
+	{
+		pcl::copyPointCloud(*cloud, *undergroundIndices, *undergroundCloud);
+	}
+
 	occupancy2DFromGroundObstacles<PointT>(
 			groundCloud,
 			obstaclesCloud,
+			undergroundCloud,
 			ground,
 			obstacles,
+			underground,
 			cellSize);
 }
 
@@ -233,8 +275,10 @@ template<typename PointT>
 void occupancy2DFromGroundObstacles(
 		const typename pcl::PointCloud<PointT>::Ptr & groundCloud,
 		const typename pcl::PointCloud<PointT>::Ptr & obstaclesCloud,
+		const typename pcl::PointCloud<PointT>::Ptr & undergroundCloud,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize)
 {
 	ground = cv::Mat();
@@ -265,7 +309,7 @@ void occupancy2DFromGroundObstacles(
 		obstaclesCloudProjected = util3d::voxelize(obstaclesCloudProjected, cellSize);
 
 		obstacles = cv::Mat(1, (int)obstaclesCloudProjected->size(), CV_32FC2);
-		for(unsigned int i=0;i<obstaclesCloudProjected->size(); ++i)
+		for(unsigned int i=0; i<obstaclesCloudProjected->size(); ++i)
 		{
 			cv::Vec2f * ptr = obstacles.ptr<cv::Vec2f>();
 			ptr[i][0] = obstaclesCloudProjected->at(i).x;
@@ -280,6 +324,7 @@ void occupancy2DFromCloud3D(
 		const pcl::IndicesPtr & indices,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize,
 		float groundNormalAngle,
 		int minClusterSize,
@@ -290,13 +335,14 @@ void occupancy2DFromCloud3D(
 	{
 		return;
 	}
-	pcl::IndicesPtr groundIndices, obstaclesIndices;
+	pcl::IndicesPtr groundIndices, obstaclesIndices, undergroundIndices;
 
 	segmentObstaclesFromGround<PointT>(
 			cloud,
 			indices,
 			groundIndices,
 			obstaclesIndices,
+			undergroundIndices,
 			20,
 			groundNormalAngle,
 			cellSize*2.0f,
@@ -308,8 +354,10 @@ void occupancy2DFromCloud3D(
 			cloud,
 			groundIndices,
 			obstaclesIndices,
+			undergroundIndices,
 			ground,
 			obstacles,
+			underground,
 			cellSize);
 }
 
@@ -318,14 +366,15 @@ void occupancy2DFromCloud3D(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize,
 		float groundNormalAngle,
 		int minClusterSize,
 		bool segmentFlatObstacles,
 		float maxGroundHeight)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
-	occupancy2DFromCloud3D<PointT>(cloud, indices, ground, obstacles, cellSize, groundNormalAngle, minClusterSize, segmentFlatObstacles, maxGroundHeight);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
+	occupancy2DFromCloud3D<PointT>(cloud, indices, ground, obstacles, underground, cellSize, groundNormalAngle, minClusterSize, segmentFlatObstacles, maxGroundHeight);
 }
 
 }

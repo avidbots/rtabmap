@@ -31,48 +31,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace rtabmap {
 
-std::string LaserScan::formatName(const Format & format)
+std::string LaserScan::formatName(const Format format)
 {
-	std::string name;
+	using namespace std::string_literals;
+
 	switch (format) {
 		case kXY:
-			name = "XY";
-			break;
+			return "XY"s;
 		case kXYZ:
-			name = "XYZ";
-			break;
+			return "XYZ"s;
 		case kXYI:
-			name = "XYI";
-			break;
+			return "XYI"s;
 		case kXYZI:
-			name = "XYZI";
-			break;
+			return "XYZI"s;
 		case kXYZRGB:
-			name = "XYZRGB";
-			break;
+			return "XYZRGB"s;
 		case kXYNormal:
-			name = "XYNormal";
-			break;
+			return "XYNormal"s;
 		case kXYZNormal:
-			name = "XYZNormal";
-			break;
+			return "XYZNormal"s;
 		case kXYINormal:
-			name = "XYINormal";
-			break;
+			return "XYINormal"s;
 		case kXYZINormal:
-			name = "XYZINormal";
-			break;
+			return "XYZINormal"s;
 		case kXYZRGBNormal:
-			name = "XYZRGBNormal";
-			break;
+			return "XYZRGBNormal"s;
 		default:
-			name = "Unknown";
-			break;
+			return "Unknown"s;
 	}
-	return name;
 }
 
-int LaserScan::channels(const Format & format)
+int LaserScan::channels(const Format format) noexcept
 {
 	int channels=0;
 	switch (format) {
@@ -105,19 +94,19 @@ int LaserScan::channels(const Format & format)
 	return channels;
 }
 
-bool LaserScan::isScan2d(const Format & format)
+bool LaserScan::isScan2d(const Format format) noexcept
 {
 	return format==kXY || format==kXYI || format == kXYNormal || format == kXYINormal;
 }
-bool LaserScan::isScanHasNormals(const Format & format)
+bool LaserScan::isScanHasNormals(const Format format) noexcept
 {
 	return format==kXYZNormal || format==kXYZINormal || format==kXYZRGBNormal || format == kXYNormal || format == kXYINormal;
 }
-bool LaserScan::isScanHasRGB(const Format & format)
+bool LaserScan::isScanHasRGB(const Format format) noexcept
 {
 	return format==kXYZRGB || format==kXYZRGBNormal;
 }
-bool LaserScan::isScanHasIntensity(const Format & format)
+bool LaserScan::isScanHasIntensity(const Format format) noexcept
 {
 	return format==kXYZI || format==kXYZINormal || format == kXYI || format == kXYINormal;
 }

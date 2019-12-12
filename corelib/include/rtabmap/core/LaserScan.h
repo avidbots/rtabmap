@@ -37,24 +37,26 @@ namespace rtabmap {
 class RTABMAP_EXP LaserScan
 {
 public:
-	enum Format{kUnknown=0,
-		kXY=1,
-		kXYI=2,
-		kXYNormal=3,
-		kXYINormal=4,
-		kXYZ=5,
-		kXYZI=6,
-		kXYZRGB=7,
-		kXYZNormal=8,
-		kXYZINormal=9,
-		kXYZRGBNormal=10};
+	enum Format {
+		kUnknown			=	0,
+		kXY						=	1,
+		kXYI					=	2,
+		kXYNormal			=	3,
+		kXYINormal		=	4,
+		kXYZ					=	5,
+		kXYZI					=	6,
+		kXYZRGB				=	7,
+		kXYZNormal		=	8,
+		kXYZINormal		=	9,
+		kXYZRGBNormal	=	10
+	};
 
-	static std::string formatName(const Format & format);
-	static int channels(const Format & format);
-	static bool isScan2d(const Format & format);
-	static bool isScanHasNormals(const Format & format);
-	static bool isScanHasRGB(const Format & format);
-	static bool isScanHasIntensity(const Format & format);
+	static std::string formatName(const Format format);
+	static int channels(const Format format) noexcept;
+	static bool isScan2d(const Format format) noexcept;
+	static bool isScanHasNormals(const Format format) noexcept;
+	static bool isScanHasRGB(const Format format) noexcept;
+	static bool isScanHasIntensity(const Format format) noexcept;
 	static LaserScan backwardCompatibility(
 			const cv::Mat & oldScanFormat,
 			int maxPoints = 0,
@@ -85,31 +87,31 @@ public:
 			float angleIncrement,
 			const Transform & localTransform = Transform::getIdentity());
 
-	const cv::Mat & data() const {return data_;}
-	Format format() const {return format_;}
+	const cv::Mat & data() const noexcept {return data_;}
+	Format format() const noexcept {return format_;}
 	std::string formatName() const {return formatName(format_);}
-	int channels() const {return data_.channels();}
-	int maxPoints() const {return maxPoints_;}
-	float rangeMin() const {return rangeMin_;}
-	float rangeMax() const {return rangeMax_;}
-	float angleMin() const {return angleMin_;}
-	float angleMax() const {return angleMax_;}
-	float angleIncrement() const {return angleIncrement_;}
-	Transform localTransform() const {return localTransform_;}
+	int channels() const noexcept {return data_.channels();}
+	int maxPoints() const noexcept {return maxPoints_;}
+	float rangeMin() const noexcept {return rangeMin_;}
+	float rangeMax() const noexcept {return rangeMax_;}
+	float angleMin() const noexcept {return angleMin_;}
+	float angleMax() const noexcept {return angleMax_;}
+	float angleIncrement() const noexcept {return angleIncrement_;}
+	Transform localTransform() const noexcept {return localTransform_;}
 
-	bool isEmpty() const {return data_.empty();}
-	int size() const {return data_.cols;}
-	int dataType() const {return data_.type();}
-	bool is2d() const {return isScan2d(format_);}
-	bool hasNormals() const {return isScanHasNormals(format_);}
-	bool hasRGB() const {return isScanHasRGB(format_);}
-	bool hasIntensity() const {return isScanHasIntensity(format_);}
-	bool isCompressed() const {return !data_.empty() && data_.type()==CV_8UC1;}
+	bool isEmpty() const noexcept {return data_.empty();}
+	int size() const noexcept {return data_.cols;}
+	int dataType() const noexcept {return data_.type();}
+	bool is2d() const noexcept {return isScan2d(format_);}
+	bool hasNormals() const noexcept {return isScanHasNormals(format_);}
+	bool hasRGB() const noexcept {return isScanHasRGB(format_);}
+	bool hasIntensity() const noexcept {return isScanHasIntensity(format_);}
+	bool isCompressed() const noexcept {return !data_.empty() && data_.type()==CV_8UC1;}
 	LaserScan clone() const;
 
-	int getIntensityOffset() const {return hasIntensity()?(is2d()?2:3):-1;}
-	int getRGBOffset() const {return hasRGB()?(is2d()?2:3):-1;}
-	int getNormalsOffset() const {return hasNormals()?(2 + (is2d()?0:1) + ((hasRGB() || hasIntensity())?1:0)):-1;}
+	int getIntensityOffset() const noexcept {return hasIntensity()?(is2d()?2:3):-1;}
+	int getRGBOffset() const noexcept {return hasRGB()?(is2d()?2:3):-1;}
+	int getNormalsOffset() const noexcept {return hasNormals()?(2 + (is2d()?0:1) + ((hasRGB() || hasIntensity())?1:0)):-1;}
 
 	void clear() {data_ = cv::Mat();}
 

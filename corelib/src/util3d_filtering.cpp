@@ -385,7 +385,7 @@ typename pcl::PointCloud<PointT>::Ptr downsampleImpl(
 		int step)
 {
 	UASSERT(step > 0);
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	if(step <= 1 || (int)cloud->size() <= step)
 	{
 		// no sampling
@@ -435,7 +435,7 @@ typename pcl::PointCloud<PointT>::Ptr voxelizeImpl(
 		float voxelSize)
 {
 	UASSERT(voxelSize > 0.0f);
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	if((cloud->is_dense && cloud->size()) || (!cloud->is_dense && indices->size()))
 	{
 		pcl::VoxelGrid<PointT> filter;
@@ -481,32 +481,32 @@ pcl::PointCloud<pcl::PointXYZINormal>::Ptr voxelize(const pcl::PointCloud<pcl::P
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr voxelize(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 pcl::PointCloud<pcl::PointNormal>::Ptr voxelize(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr voxelize(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr voxelize(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 pcl::PointCloud<pcl::PointXYZI>::Ptr voxelize(const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 pcl::PointCloud<pcl::PointXYZINormal>::Ptr voxelize(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud, float voxelSize)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return voxelize(cloud, indices, voxelSize);
 }
 
@@ -515,7 +515,7 @@ typename pcl::PointCloud<PointT>::Ptr randomSamplingImpl(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud, int samples)
 {
 	UASSERT(samples > 0);
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	pcl::RandomSample<PointT> filter;
 	filter.setSample(samples);
 	filter.setInputCloud(cloud);
@@ -535,15 +535,15 @@ template<typename PointT>
 pcl::IndicesPtr passThroughImpl(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative)
 {
-	UASSERT_MSG(max > min, uFormat("cloud=%d, max=%f min=%f axis=%s", (int)cloud->size(), max, min, axis.c_str()).c_str());
-	UASSERT(axis.compare("x") == 0 || axis.compare("y") == 0 || axis.compare("z") == 0);
+	UASSERT_MSG(max > min, uFormat("cloud=%d, max=%f min=%f axis=%s", (int)cloud->size(), max, min, axis).c_str());
+	UASSERT(std::strcmp(axis, "x") == 0 || std::strcmp(axis, "y") == 0 || std::strcmp(axis, "z") == 0);
 
-	pcl::IndicesPtr output(new std::vector<int>);
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 	pcl::PassThrough<PointT> filter;
 	filter.setNegative(negative);
 	filter.setFilterFieldName(axis);
@@ -554,27 +554,27 @@ pcl::IndicesPtr passThroughImpl(
 	return output;
 }
 
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZ>(cloud, indices, axis, min, max, negative);
 }
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZRGB>(cloud, indices, axis, min, max, negative);
 }
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZI>(cloud, indices, axis, min, max, negative);
 }
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointNormal>(cloud, indices, axis, min, max, negative);
 }
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZRGBNormal>(cloud, indices, axis, min, max, negative);
 }
-pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const std::string & axis, float min, float max, bool negative)
+pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud, const pcl::IndicesPtr & indices, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZINormal>(cloud, indices, axis, min, max, negative);
 }
@@ -582,15 +582,15 @@ pcl::IndicesPtr passThrough(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & c
 template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr passThroughImpl(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative)
 {
-	UASSERT_MSG(max > min, uFormat("cloud=%d, max=%f min=%f axis=%s", (int)cloud->size(), max, min, axis.c_str()).c_str());
-	UASSERT(axis.compare("x") == 0 || axis.compare("y") == 0 || axis.compare("z") == 0);
+	UASSERT_MSG(max > min, uFormat("cloud=%d, max=%f min=%f axis=%s", (int)cloud->size(), max, min, axis).c_str());
+	UASSERT(std::strcmp(axis, "x") == 0 || std::strcmp(axis, "y") == 0 || std::strcmp(axis, "z") == 0);
 
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	pcl::PassThrough<PointT> filter;
 	filter.setNegative(negative);
 	filter.setFilterFieldName(axis);
@@ -599,27 +599,27 @@ typename pcl::PointCloud<PointT>::Ptr passThroughImpl(
 	filter.filter(*output);
 	return output;
 }
-pcl::PointCloud<pcl::PointXYZ>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointXYZ>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZ>(cloud, axis, min ,max, negative);
 }
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZRGB>(cloud, axis, min ,max, negative);
 }
-pcl::PointCloud<pcl::PointXYZI>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointXYZI>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZI>(cloud, axis, min ,max, negative);
 }
-pcl::PointCloud<pcl::PointNormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointNormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointNormal>(cloud, axis, min ,max, negative);
 }
-pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZRGBNormal>(cloud, axis, min ,max, negative);
 }
-pcl::PointCloud<pcl::PointXYZINormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud, const std::string & axis, float min, float max, bool negative)
+pcl::PointCloud<pcl::PointXYZINormal>::Ptr passThrough(const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud, const char* axis, float min, float max, bool negative)
 {
 	return passThroughImpl<pcl::PointXYZINormal>(cloud, axis, min ,max, negative);
 }
@@ -635,7 +635,7 @@ pcl::IndicesPtr cropBoxImpl(
 {
 	UASSERT(min[0] < max[0] && min[1] < max[1] && min[2] < max[2]);
 
-	pcl::IndicesPtr output(new std::vector<int>);
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 	pcl::CropBox<PointT> filter;
 	filter.setNegative(negative);
 	filter.setMin(min);
@@ -677,7 +677,7 @@ typename pcl::PointCloud<PointT>::Ptr cropBoxImpl(
 {
 	UASSERT(min[0] < max[0] && min[1] < max[1] && min[2] < max[2]);
 
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	pcl::CropBox<PointT> filter;
 	filter.setNegative(negative);
 	filter.setMin(min);
@@ -722,7 +722,7 @@ pcl::IndicesPtr frustumFilteringImpl(
 	UASSERT(farClipPlaneDistance > nearClipPlaneDistance);
 	UASSERT(!cameraPose.isNull());
 
-	pcl::IndicesPtr output(new std::vector<int>);
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 	pcl::FrustumCulling<PointT> fc;
 	fc.setNegative(negative);
 	fc.setInputCloud (cloud);
@@ -759,7 +759,7 @@ typename pcl::PointCloud<PointT>::Ptr frustumFilteringImpl(
 	UASSERT(farClipPlaneDistance > nearClipPlaneDistance);
 	UASSERT(!cameraPose.isNull());
 
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	pcl::FrustumCulling<PointT> fc;
 	fc.setNegative(negative);
 	fc.setInputCloud (cloud);
@@ -787,7 +787,7 @@ template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr removeNaNFromPointCloudImpl(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud)
 {
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	std::vector<int> indices;
 	pcl::removeNaNFromPointCloud(*cloud, *output, indices);
 	return output;
@@ -809,7 +809,7 @@ template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr removeNaNNormalsFromPointCloudImpl(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud)
 {
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	std::vector<int> indices;
 	pcl::removeNaNNormalsFromPointCloud(*cloud, *output, indices);
 	return output;
@@ -833,22 +833,22 @@ pcl::PointCloud<pcl::PointXYZINormal>::Ptr removeNaNNormalsFromPointCloud(
 
 pcl::IndicesPtr radiusFiltering(const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, float radiusSearch, int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return radiusFiltering(cloud, indices, radiusSearch, minNeighborsInRadius);
 }
 pcl::IndicesPtr radiusFiltering(const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud, float radiusSearch, int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return radiusFiltering(cloud, indices, radiusSearch, minNeighborsInRadius);
 }
 pcl::IndicesPtr radiusFiltering(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, float radiusSearch, int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return radiusFiltering(cloud, indices, radiusSearch, minNeighborsInRadius);
 }
 pcl::IndicesPtr radiusFiltering(const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud, float radiusSearch, int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return radiusFiltering(cloud, indices, radiusSearch, minNeighborsInRadius);
 }
 
@@ -859,18 +859,18 @@ pcl::IndicesPtr radiusFilteringImpl(
 		float radiusSearch,
 		int minNeighborsInRadius)
 {
-	typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>(false));
+	pcl::search::KdTree<PointT> tree(false);
 
 	if(indices->size())
 	{
-		pcl::IndicesPtr output(new std::vector<int>(indices->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(indices->size());
 		int oi = 0; // output iterator
-		tree->setInputCloud(cloud, indices);
+		tree.setInputCloud(cloud, indices);
 		for(unsigned int i=0; i<indices->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
 			if(k > minNeighborsInRadius)
 			{
 				output->at(oi++) = indices->at(i);
@@ -881,14 +881,14 @@ pcl::IndicesPtr radiusFilteringImpl(
 	}
 	else
 	{
-		pcl::IndicesPtr output(new std::vector<int>(cloud->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
-		tree->setInputCloud(cloud);
+		tree.setInputCloud(cloud);
 		for(unsigned int i=0; i<cloud->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
 			if(k > minNeighborsInRadius)
 			{
 				output->at(oi++) = i;
@@ -922,9 +922,9 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr subtractFiltering(
 		float radiusSearch,
 		int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	pcl::IndicesPtr indicesOut = subtractFiltering(cloud, indices, substractCloud, indices, radiusSearch, minNeighborsInRadius);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr out = boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
 	pcl::copyPointCloud(*cloud, *indicesOut, *out);
 	return out;
 }
@@ -939,25 +939,25 @@ pcl::IndicesPtr subtractFilteringImpl(
 		int minNeighborsInRadius)
 {
 	UASSERT(minNeighborsInRadius > 0);
-	typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>(false));
+	pcl::search::KdTree<PointT> tree(false);
 
 	if(indices->size())
 	{
-		pcl::IndicesPtr output(new std::vector<int>(indices->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(indices->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<indices->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
 			if(k < minNeighborsInRadius)
 			{
 				output->at(oi++) = indices->at(i);
@@ -968,21 +968,21 @@ pcl::IndicesPtr subtractFilteringImpl(
 	}
 	else
 	{
-		pcl::IndicesPtr output(new std::vector<int>(cloud->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<cloud->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
 			if(k < minNeighborsInRadius)
 			{
 				output->at(oi++) = i;
@@ -1010,9 +1010,9 @@ pcl::PointCloud<pcl::PointNormal>::Ptr subtractFiltering(
 		float maxAngle,
 		int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	pcl::IndicesPtr indicesOut = subtractFiltering(cloud, indices, substractCloud, indices, radiusSearch, maxAngle, minNeighborsInRadius);
-	pcl::PointCloud<pcl::PointNormal>::Ptr out(new pcl::PointCloud<pcl::PointNormal>);
+	pcl::PointCloud<pcl::PointNormal>::Ptr out = boost::make_shared<pcl::PointCloud<pcl::PointNormal>>();
 	pcl::copyPointCloud(*cloud, *indicesOut, *out);
 	return out;
 }
@@ -1023,9 +1023,9 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr subtractFiltering(
 		float maxAngle,
 		int minNeighborsInRadius)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	pcl::IndicesPtr indicesOut = subtractFiltering(cloud, indices, substractCloud, indices, radiusSearch, maxAngle, minNeighborsInRadius);
-	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr out(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr out = boost::make_shared<pcl::PointCloud<pcl::PointXYZRGBNormal>>();
 	pcl::copyPointCloud(*cloud, *indicesOut, *out);
 	return out;
 }
@@ -1041,25 +1041,25 @@ pcl::IndicesPtr subtractFilteringImpl(
 		int minNeighborsInRadius)
 {
 	UASSERT(minNeighborsInRadius > 0);
-	typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>(false));
+	pcl::search::KdTree<PointT> tree(false);
 
 	if(indices->size())
 	{
-		pcl::IndicesPtr output(new std::vector<int>(indices->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(indices->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<indices->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(indices->at(i)), radiusSearch, kIndices, kDistances);
 			if(k>=minNeighborsInRadius && maxAngle > 0.0f)
 			{
 				Eigen::Vector4f normal(cloud->at(indices->at(i)).normal_x, cloud->at(indices->at(i)).normal_y, cloud->at(indices->at(i)).normal_z, 0.0f);
@@ -1102,21 +1102,21 @@ pcl::IndicesPtr subtractFilteringImpl(
 	}
 	else
 	{
-		pcl::IndicesPtr output(new std::vector<int>(cloud->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<cloud->size(); ++i)
 		{
 			std::vector<int> kIndices;
 			std::vector<float> kDistances;
-			int k = tree->radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
+			int k = tree.radiusSearch(cloud->at(i), radiusSearch, kIndices, kDistances);
 			if(k>=minNeighborsInRadius && maxAngle > 0.0f)
 			{
 				Eigen::Vector4f normal(cloud->at(i).normal_x, cloud->at(i).normal_y, cloud->at(i).normal_z, 0.0f);
@@ -1194,19 +1194,19 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 	UWARN("Add angle to avoid subtraction of points with opposite normals");
 	UASSERT(minNeighborsInRadius > 0);
 	UASSERT(radiusSearchRatio > 0.0f);
-	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>(false));
+	pcl::search::KdTree<pcl::PointXYZRGB> tree(false);
 
 	if(indices->size())
 	{
-		pcl::IndicesPtr output(new std::vector<int>(indices->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<indices->size(); ++i)
 		{
@@ -1218,7 +1218,7 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 							cloud->at(indices->at(i)).x-viewpoint[0],
 							cloud->at(indices->at(i)).y-viewpoint[1],
 							cloud->at(indices->at(i)).z-viewpoint[2]);
-				int k = tree->radiusSearch(cloud->at(indices->at(i)), radius, kIndices, kSqrdDistances);
+				int k = tree.radiusSearch(cloud->at(indices->at(i)), radius, kIndices, kSqrdDistances);
 				if(k < minNeighborsInRadius)
 				{
 					output->at(oi++) = indices->at(i);
@@ -1230,15 +1230,15 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 	}
 	else
 	{
-		pcl::IndicesPtr output(new std::vector<int>(cloud->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<cloud->size(); ++i)
 		{
@@ -1250,7 +1250,7 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 						cloud->at(i).x-viewpoint[0],
 						cloud->at(i).y-viewpoint[1],
 						cloud->at(i).z-viewpoint[2]);
-				int k = tree->radiusSearch(cloud->at(i), radius, kIndices, kSqrdDistances);
+				int k = tree.radiusSearch(cloud->at(i), radius, kIndices, kSqrdDistances);
 				if(k < minNeighborsInRadius)
 				{
 					output->at(oi++) = i;
@@ -1273,19 +1273,19 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 {
 	UASSERT(minNeighborsInRadius > 0);
 	UASSERT(radiusSearchRatio > 0.0f);
-	pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBNormal>(false));
+	pcl::search::KdTree<pcl::PointXYZRGBNormal> tree(false);
 
 	if(indices->size())
 	{
-		pcl::IndicesPtr output(new std::vector<int>(indices->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(indices->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<indices->size(); ++i)
 		{
@@ -1297,7 +1297,7 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 						cloud->at(indices->at(i)).x-viewpoint[0],
 						cloud->at(indices->at(i)).y-viewpoint[1],
 						cloud->at(indices->at(i)).z-viewpoint[2]);
-				int k = tree->radiusSearch(cloud->at(indices->at(i)), radius, kIndices, kSqrdDistances);
+				int k = tree.radiusSearch(cloud->at(indices->at(i)), radius, kIndices, kSqrdDistances);
 				if(k>=minNeighborsInRadius && maxAngle > 0.0f)
 				{
 					Eigen::Vector4f normal(cloud->at(indices->at(i)).normal_x, cloud->at(indices->at(i)).normal_y, cloud->at(indices->at(i)).normal_z, 0.0f);
@@ -1342,15 +1342,15 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 	}
 	else
 	{
-		pcl::IndicesPtr output(new std::vector<int>(cloud->size()));
+		pcl::IndicesPtr output = boost::make_shared<std::vector<int>>(cloud->size());
 		int oi = 0; // output iterator
 		if(substractIndices->size())
 		{
-			tree->setInputCloud(substractCloud, substractIndices);
+			tree.setInputCloud(substractCloud, substractIndices);
 		}
 		else
 		{
-			tree->setInputCloud(substractCloud);
+			tree.setInputCloud(substractCloud);
 		}
 		for(unsigned int i=0; i<cloud->size(); ++i)
 		{
@@ -1362,7 +1362,7 @@ pcl::IndicesPtr subtractAdaptiveFiltering(
 						cloud->at(i).x-viewpoint[0],
 						cloud->at(i).y-viewpoint[1],
 						cloud->at(i).z-viewpoint[2]);
-				int k = tree->radiusSearch(cloud->at(i), radius, kIndices, kSqrdDistances);
+				int k = tree.radiusSearch(cloud->at(i), radius, kIndices, kSqrdDistances);
 				if(k>=minNeighborsInRadius && maxAngle > 0.0f)
 				{
 					Eigen::Vector4f normal(cloud->at(i).normal_x, cloud->at(i).normal_y, cloud->at(i).normal_z, 0.0f);
@@ -1414,7 +1414,7 @@ pcl::IndicesPtr normalFiltering(
 		int normalKSearch,
 		const Eigen::Vector4f & viewpoint)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return normalFiltering(cloud, indices, angleMax, normal, normalKSearch, viewpoint);
 }
 pcl::IndicesPtr normalFiltering(
@@ -1424,7 +1424,7 @@ pcl::IndicesPtr normalFiltering(
 		int normalKSearch,
 		const Eigen::Vector4f & viewpoint)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return normalFiltering(cloud, indices, angleMax, normal, normalKSearch, viewpoint);
 }
 
@@ -1438,11 +1438,11 @@ pcl::IndicesPtr normalFilteringImpl(
 		int normalKSearch,
 		const Eigen::Vector4f & viewpoint)
 {
-	pcl::IndicesPtr output(new std::vector<int>());
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 
 	if(cloud->size())
 	{
-		typename pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>(false));
+		typename pcl::search::KdTree<PointT>::Ptr tree = boost::make_shared<pcl::search::KdTree<PointT>>(false);
 
 		pcl::NormalEstimationOMP<PointT, pcl::Normal> ne;
 		ne.setInputCloud (cloud);
@@ -1461,7 +1461,7 @@ pcl::IndicesPtr normalFilteringImpl(
 		}
 		ne.setSearchMethod (tree);
 
-		pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+		pcl::PointCloud<pcl::Normal> cloud_normals;
 
 		ne.setKSearch(normalKSearch);
 		if(viewpoint[0] != 0 || viewpoint[1] != 0 || viewpoint[2] != 0)
@@ -1469,13 +1469,13 @@ pcl::IndicesPtr normalFilteringImpl(
 			ne.setViewPoint(viewpoint[0], viewpoint[1], viewpoint[2]);
 		}
 
-		ne.compute (*cloud_normals);
+		ne.compute (cloud_normals);
 
-		output->resize(cloud_normals->size());
+		output->resize(cloud_normals.size());
 		int oi = 0; // output iterator
-		for(unsigned int i=0; i<cloud_normals->size(); ++i)
+		for(unsigned int i=0; i<cloud_normals.size(); ++i)
 		{
-			Eigen::Vector4f v(cloud_normals->at(i).normal_x, cloud_normals->at(i).normal_y, cloud_normals->at(i).normal_z, 0.0f);
+			Eigen::Vector4f v(cloud_normals.at(i).normal_x, cloud_normals.at(i).normal_y, cloud_normals.at(i).normal_z, 0.0f);
 			float angle = pcl::getAngle3D(normal, v);
 			if(angle < angleMax)
 			{
@@ -1516,7 +1516,7 @@ pcl::IndicesPtr normalFilteringImpl(
 		float angleMax,
 		const Eigen::Vector4f & normal)
 {
-	pcl::IndicesPtr output(new std::vector<int>());
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 
 	if(cloud->size())
 	{
@@ -1581,7 +1581,7 @@ std::vector<pcl::IndicesPtr> extractClusters(
 		int maxClusterSize,
 		int * biggestClusterIndex)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return extractClusters(cloud, indices, clusterTolerance, minClusterSize, maxClusterSize, biggestClusterIndex);
 }
 std::vector<pcl::IndicesPtr> extractClusters(
@@ -1591,7 +1591,7 @@ std::vector<pcl::IndicesPtr> extractClusters(
 		int maxClusterSize,
 		int * biggestClusterIndex)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return extractClusters(cloud, indices, clusterTolerance, minClusterSize, maxClusterSize, biggestClusterIndex);
 }
 
@@ -1604,7 +1604,7 @@ std::vector<pcl::IndicesPtr> extractClustersImpl(
 		int maxClusterSize,
 		int * biggestClusterIndex)
 {
-	typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>(true));
+	auto tree = boost::make_shared<pcl::search::KdTree<PointT>>(true);
 	pcl::EuclideanClusterExtraction<PointT> ec;
 	ec.setClusterTolerance (clusterTolerance);
 	ec.setMinClusterSize (minClusterSize);
@@ -1630,7 +1630,7 @@ std::vector<pcl::IndicesPtr> extractClustersImpl(
 	std::vector<pcl::IndicesPtr> output(cluster_indices.size());
 	for(unsigned int i=0; i<cluster_indices.size(); ++i)
 	{
-		output[i] = pcl::IndicesPtr(new std::vector<int>(cluster_indices[i].indices));
+		output[i] = boost::make_shared<std::vector<int>>(cluster_indices[i].indices);
 
 		if(maxSize < cluster_indices[i].indices.size())
 		{
@@ -1693,7 +1693,7 @@ pcl::IndicesPtr extractIndicesImpl(
 		const pcl::IndicesPtr & indices,
 		bool negative)
 {
-	pcl::IndicesPtr output(new std::vector<int>);
+	pcl::IndicesPtr output = boost::make_shared<std::vector<int>>();
 	pcl::ExtractIndices<PointT> extract;
 	extract.setInputCloud (cloud);
 	extract.setIndices(indices);
@@ -1726,7 +1726,7 @@ typename pcl::PointCloud<PointT>::Ptr extractIndicesImpl(
 		bool negative,
 		bool keepOrganized)
 {
-	typename pcl::PointCloud<PointT>::Ptr output(new pcl::PointCloud<PointT>);
+	typename pcl::PointCloud<PointT>::Ptr output = boost::make_shared<pcl::PointCloud<PointT>>();
 	pcl::ExtractIndices<PointT> extract;
 	extract.setInputCloud (cloud);
 	extract.setIndices(indices);
@@ -1759,7 +1759,7 @@ pcl::IndicesPtr extractPlane(
 		int maxIterations,
 		pcl::ModelCoefficients * coefficientsOut)
 {
-	pcl::IndicesPtr indices(new std::vector<int>);
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 	return extractPlane(cloud, indices, distanceThreshold, maxIterations, coefficientsOut);
 }
 
@@ -1771,8 +1771,8 @@ pcl::IndicesPtr extractPlane(
 		pcl::ModelCoefficients * coefficientsOut)
 {
 	// Extract plane
-	pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-	pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+	pcl::ModelCoefficients::Ptr coefficients = boost::make_shared<pcl::ModelCoefficients>();
+	pcl::PointIndices::Ptr inliers = boost::make_shared<pcl::PointIndices>();
 	// Create the segmentation object
 	pcl::SACSegmentation<pcl::PointXYZ> seg;
 	// Optional
@@ -1795,7 +1795,7 @@ pcl::IndicesPtr extractPlane(
 		*coefficientsOut = *coefficients;
 	}
 
-	return pcl::IndicesPtr(new std::vector<int>(inliers->indices));
+	return boost::make_shared<std::vector<int>>(std::move(inliers->indices));
 }
 
 }

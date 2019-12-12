@@ -159,78 +159,78 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr RTABMAP_EXP randomSampling(
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::IndicesPtr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud,
 		const pcl::IndicesPtr & indices,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointXYZ>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointXYZI>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZI>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointNormal>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointNormal>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);
 pcl::PointCloud<pcl::PointXYZINormal>::Ptr RTABMAP_EXP passThrough(
 		const pcl::PointCloud<pcl::PointXYZINormal>::Ptr & cloud,
-		const std::string & axis,
+		const char* axis,
 		float min,
 		float max,
 		bool negative = false);

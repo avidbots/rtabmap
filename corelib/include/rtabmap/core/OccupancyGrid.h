@@ -40,14 +40,19 @@ namespace rtabmap {
 class RTABMAP_EXP OccupancyGrid
 {
 public:
-	inline static float logodds(double probability)
-	{
-		return (float) log(probability/(1-probability));
+	enum OccupancyCellValue {
+		kOccupied    = 100,
+		kFree        = 0,
+		kUnknown     = -1,
+		kUnderground = -100
+	};
+
+	static double logodds(double probability) noexcept {
+		return std::log(probability / (1.0 - probability));
 	}
 
-	inline static double probability(double logodds)
-	{
-		return 1. - ( 1. / (1. + exp(logodds)));
+	static double probability(double logodds) noexcept {
+		return 1.0 - (1.0 / (1.0 + std::exp(logodds)));
 	}
 
 public:
@@ -55,41 +60,44 @@ public:
 	void parseParameters(const ParametersMap & parameters);
 	void setMap(const cv::Mat & map, float xMin, float yMin, float cellSize, const std::map<int, Transform> & poses);
 	void setCellSize(float cellSize);
-	float getCellSize() const {return cellSize_;}
+	float getCellSize() const noexcept {return cellSize_;}
 	void setCloudAssembling(bool enabled);
-	float getMinMapSize() const {return minMapSize_;}
-	bool isGridFromDepth() const {return occupancyFromDepth_;}
-	bool isFullUpdate() const {return fullUpdate_;}
-	float getUpdateError() const {return updateError_;}
-	bool isMapFrameProjection() const {return projMapFrame_;}
-	const std::map<int, Transform> & addedNodes() const {return addedNodes_;}
-	int cacheSize() const {return (int)cache_.size();}
-	const std::map<int, std::pair<std::pair<cv::Mat, cv::Mat>, cv::Mat> > & getCache() const {return cache_;}
+	float getMinMapSize() const noexcept {return minMapSize_;}
+	bool isGridFromDepth() const noexcept {return occupancyFromDepth_;}
+	bool isFullUpdate() const noexcept {return fullUpdate_;}
+	float getUpdateError() const noexcept {return updateError_;}
+	bool isMapFrameProjection() const noexcept {return projMapFrame_;}
+	const std::map<int, Transform> & addedNodes() const noexcept {return addedNodes_;}
+	int cacheSize() const noexcept {return (int)cache_.size();}
+	const std::map<int, std::pair<std::pair<cv::Mat, cv::Mat>, cv::Mat> > & getCache() const noexcept {return cache_;}
 
 	template<typename PointT>
 	typename pcl::PointCloud<PointT>::Ptr segmentCloud(
-			const typename pcl::PointCloud<PointT>::Ptr & cloud,
-			const pcl::IndicesPtr & indices,
-			const Transform & pose,
-			const cv::Point3f & viewPoint,
-			pcl::IndicesPtr & groundIndices,        // output cloud indices
-			pcl::IndicesPtr & obstaclesIndices,     // output cloud indices
-			pcl::IndicesPtr * flatObstacles = 0) const; // output cloud indices
+			const typename pcl::PointCloud<PointT>::Ptr& cloud,
+			const pcl::IndicesPtr& indices,
+			const Transform& pose,
+			const cv::Point3f& viewPoint,
+			pcl::IndicesPtr& groundIndices,        // output cloud indices
+			pcl::IndicesPtr& obstaclesIndices,     // output cloud indices
+			pcl::IndicesPtr& undergroundIndices,   // output cloud indices
+			pcl::IndicesPtr* flatObstacles = 0) const; // output cloud indices
 
 	void createLocalMap(
-			const Signature & node,
-			cv::Mat & groundCells,
-			cv::Mat & obstacleCells,
-			cv::Mat & emptyCells,
-			cv::Point3f & viewPoint) const;
+			const Signature& node,
+			cv::Mat& groundCells,
+			cv::Mat& obstacleCells,
+			cv::Mat& undergroundCells,
+			cv::Mat& emptyCells,
+			cv::Point3f& viewPoint) const;
 
 	void createLocalMap(
-			const LaserScan & cloud,
-			const Transform & pose,
-			cv::Mat & groundCells,
-			cv::Mat & obstacleCells,
-			cv::Mat & emptyCells,
-			cv::Point3f & viewPointInOut) const;
+			const LaserScan& cloud,
+			const Transform& pose,
+			cv::Mat& groundCells,
+			cv::Mat& obstacleCells,
+			cv::Mat& undergroundCells,
+			cv::Mat& emptyCells,
+			cv::Point3f& viewPointInOut) const;
 
 	void clear();
 	void addToCache(
@@ -144,7 +152,9 @@ private:
 	float probClampingMin_;
 	float probClampingMax_;
 
-	std::map<int, std::pair<std::pair<cv::Mat, cv::Mat>, cv::Mat> > cache_; //<node id, < <ground, obstacles>, empty> >
+  using MapInfoElement = cv::Vec<float, 5>;
+
+  std::map<int, std::pair<std::pair<cv::Mat, cv::Mat>, cv::Mat> > cache_; //<node id, < <ground, obstacles>, empty> >
 	cv::Mat map_;
 	cv::Mat mapInfo_;
 	std::map<int, std::pair<int, int> > cellCount_; //<node Id, cells>

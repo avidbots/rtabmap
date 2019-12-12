@@ -42,17 +42,19 @@ typename pcl::PointCloud<PointT>::Ptr OccupancyGrid::segmentCloud(
 		const cv::Point3f & viewPoint,
 		pcl::IndicesPtr & groundIndices,
 		pcl::IndicesPtr & obstaclesIndices,
+		pcl::IndicesPtr & undergroundIndices,
 		pcl::IndicesPtr * flatObstacles) const
 {
-	groundIndices.reset(new std::vector<int>);
-	obstaclesIndices.reset(new std::vector<int>);
+	groundIndices = boost::make_shared<std::vector<int>>();
+	obstaclesIndices = boost::make_shared<std::vector<int>>();
+	undergroundIndices = boost::make_shared<std::vector<int>>();
 	if(flatObstacles)
 	{
-		flatObstacles->reset(new std::vector<int>);
+		*flatObstacles = boost::make_shared<std::vector<int>>();
 	}
 
-	typename pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
-	pcl::IndicesPtr indices(new std::vector<int>);
+	typename pcl::PointCloud<PointT>::Ptr cloud = boost::make_shared<pcl::PointCloud<PointT>>();
+	pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 
 	if(preVoxelFiltering_)
 	{
@@ -131,6 +133,7 @@ typename pcl::PointCloud<PointT>::Ptr OccupancyGrid::segmentCloud(
 					indices,
 					groundIndices,
 					obstaclesIndices,
+					undergroundIndices,
 					normalKSearch_,
 					maxGroundAngle_,
 					clusterRadius_,
@@ -158,29 +161,43 @@ typename pcl::PointCloud<PointT>::Ptr OccupancyGrid::segmentCloud(
 				notObstacles = util3d::extractIndices(cloud, indices, true);
 				notObstacles = util3d::concatenate(notObstacles, groundIndices);
 			}
+
+			if (minGroundHeight_ != 0.0) {
+				undergroundIndices = rtabmap::util3d::passThrough(
+					cloud, indices, "z",
+					std::numeric_limits<int>::lowest(),
+					minGroundHeight_);
+				notObstacles = util3d::concatenate(notObstacles, undergroundIndices);
+			}
+
 			obstaclesIndices = rtabmap::util3d::extractIndices(cloud, notObstacles, true);
 		}
 
-		UDEBUG("groundIndices=%d obstaclesIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size());
+		UDEBUG("groundIndices=%zu obstaclesIndices=%zu undergroundIndices=%zu",
+					 groundIndices->size(), obstaclesIndices->size(), undergroundIndices->size());
 
 		// Do radius filtering after voxel filtering ( a lot faster)
 		if(noiseFilteringRadius_ > 0.0 && noiseFilteringMinNeighbors_ > 0)
 		{
 			UDEBUG("");
-			if(groundIndices->size())
+			if (!groundIndices->empty())
 			{
 				groundIndices = rtabmap::util3d::radiusFiltering(cloud, groundIndices, noiseFilteringRadius_, noiseFilteringMinNeighbors_);
 			}
-			if(obstaclesIndices->size())
+			if (!obstaclesIndices->empty())
 			{
 				obstaclesIndices = rtabmap::util3d::radiusFiltering(cloud, obstaclesIndices, noiseFilteringRadius_, noiseFilteringMinNeighbors_);
 			}
-			if(flatObstacles && (*flatObstacles)->size())
+			if (!undergroundIndices->empty())
+			{
+				undergroundIndices = rtabmap::util3d::radiusFiltering(cloud, undergroundIndices, noiseFilteringRadius_, noiseFilteringMinNeighbors_);
+			}
+			if (flatObstacles && (*flatObstacles)->size())
 			{
 				*flatObstacles = rtabmap::util3d::radiusFiltering(cloud, *flatObstacles, noiseFilteringRadius_, noiseFilteringMinNeighbors_);
 			}
 
-			if(groundIndices->empty() && obstaclesIndices->empty())
+			if (groundIndices->empty() && obstaclesIndices->empty() && undergroundIndices->empty())
 			{
 				UWARN("Cloud (with %d points) is empty after noise "
 						"filtering. Occupancy grid cannot be "

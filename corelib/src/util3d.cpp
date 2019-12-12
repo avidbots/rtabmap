@@ -41,6 +41,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/imgproc/types_c.h>
 
+#include <boost/make_shared.hpp>
+
 namespace rtabmap
 {
 
@@ -282,7 +284,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudFromDepth(
 		float minDepth,
 		std::vector<int> * validIndices)
 {
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
 	if(decimation == 0)
 	{
 		decimation = 1;
@@ -434,7 +436,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudFromDepthRGB(
 		float minDepth,
 		std::vector<int> * validIndices)
 {
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = boost::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>();
 	if(decimation == 0)
 	{
 		decimation = 1;

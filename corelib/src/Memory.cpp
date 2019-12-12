@@ -5085,10 +5085,10 @@ Signature * Memory::createSignature(const SensorData & inputData, const Transfor
 	{
 		if(!data.depthOrRightRaw().empty())
 		{
-			cv::Mat ground, obstacles, empty;
+			cv::Mat ground, obstacles, underground, empty;
 			float cellSize = 0.0f;
 			cv::Point3f viewPoint(0,0,0);
-			_occupancy->createLocalMap(*s, ground, obstacles, empty, viewPoint);
+			_occupancy->createLocalMap(*s, ground, obstacles, underground, empty, viewPoint);
 			cellSize = _occupancy->getCellSize();
 			s->sensorData().setOccupancyGrid(ground, obstacles, empty, cellSize, viewPoint);
 

@@ -237,7 +237,7 @@ void OccupancyGrid::setMap(const cv::Mat & map, float xMin, float yMin, float ce
 			for(int j=0; j<map_.cols; ++j)
 			{
 				const char value = map_.at<char>(i,j);
-				float * info = mapInfo_.ptr<float>(i,j);
+				auto& info = mapInfo_.at<MapInfoElement>(i, j);
 				if(value == 0)
 				{
 					info[3] = probClampingMin_;
@@ -281,9 +281,10 @@ void OccupancyGrid::setCloudAssembling(bool enabled)
 
 void OccupancyGrid::createLocalMap(
 		const Signature & node,
-		cv::Mat & groundCells,
-		cv::Mat & obstacleCells,
-		cv::Mat & emptyCells,
+		cv::Mat& groundCells,
+		cv::Mat& obstacleCells,
+		cv::Mat& undergroundCells,
+		cv::Mat& emptyCells,
 		cv::Point3f & viewPoint) const
 {
 	UDEBUG("scan format=%d, occupancyFromDepth_=%d normalsSegmentation_=%d grid3D_=%d",
@@ -319,11 +320,13 @@ void OccupancyGrid::createLocalMap(
 				viewPoint,
 				emptyCells,
 				obstacleCells,
+				undergroundCells,
 				cellSize_,
 				scan2dUnknownSpaceFilled_,
 				maxRange);
 
-		UDEBUG("ground=%d obstacles=%d channels=%d", emptyCells.cols, obstacleCells.cols, obstacleCells.cols?obstacleCells.channels():emptyCells.channels());
+		UDEBUG("ground=%d obstacles=%d obstacles.channels=%d", emptyCells.cols, obstacleCells.cols, obstacleCells.cols?obstacleCells.channels():emptyCells.channels());
+		UDEBUG("ground=%d underground=%d underground.channels=%d", emptyCells.cols, undergroundCells.cols, undergroundCells.cols?undergroundCells.channels():emptyCells.channels());
 	}
 	else
 	{
@@ -350,7 +353,7 @@ void OccupancyGrid::createLocalMap(
 				viewPoint = cv::Point3f(t.x(), t.y(), t.z());
 
 				UDEBUG("scan format=%d", scan.format());
-				createLocalMap(scan, node.getPose(), groundCells, obstacleCells, emptyCells, viewPoint);
+				createLocalMap(scan, node.getPose(), groundCells, obstacleCells, undergroundCells, emptyCells, viewPoint);
 			}
 			else
 			{
@@ -359,7 +362,7 @@ void OccupancyGrid::createLocalMap(
 		}
 		else
 		{
-			pcl::IndicesPtr indices(new std::vector<int>);
+			pcl::IndicesPtr indices = boost::make_shared<std::vector<int>>();
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 			UDEBUG("Depth image : decimation=%d max=%f min=%f",
 					cloudDecimation_,
@@ -383,7 +386,7 @@ void OccupancyGrid::createLocalMap(
 			if(node.sensorData().cameraModels().size())
 			{
 				// average of all local transforms
-				float sum = 0;
+				unsigned int sum = 0;
 				for(unsigned int i=0; i<node.sensorData().cameraModels().size(); ++i)
 				{
 					const Transform & t = node.sensorData().cameraModels()[i].localTransform();
@@ -392,14 +395,13 @@ void OccupancyGrid::createLocalMap(
 						viewPoint.x += t.x();
 						viewPoint.y += t.y();
 						viewPoint.z += t.z();
-						sum += 1.0f;
+						++sum;
 					}
 				}
-				if(sum > 0.0f)
-				{
-					viewPoint.x /= sum;
-					viewPoint.y /= sum;
-					viewPoint.z /= sum;
+				if (sum > 0) {
+					viewPoint.x /= static_cast<float>(sum);
+					viewPoint.y /= static_cast<float>(sum);
+					viewPoint.z /= static_cast<float>(sum);
 				}
 			}
 			else
@@ -407,112 +409,129 @@ void OccupancyGrid::createLocalMap(
 				const Transform & t = node.sensorData().stereoCameraModel().localTransform();
 				viewPoint = cv::Point3f(t.x(), t.y(), t.z());
 			}
-			createLocalMap(LaserScan(util3d::laserScanFromPointCloud(*cloud, indices), 0, 0.0f, LaserScan::kXYZRGB), node.getPose(), groundCells, obstacleCells, emptyCells, viewPoint);
+			createLocalMap(LaserScan(util3d::laserScanFromPointCloud(*cloud, indices), 0, 0.0f, LaserScan::kXYZRGB), node.getPose(), groundCells, obstacleCells, undergroundCells, emptyCells, viewPoint);
 		}
 	}
 }
 
 void OccupancyGrid::createLocalMap(
-		const LaserScan & scan,
-		const Transform & pose,
-		cv::Mat & groundCells,
-		cv::Mat & obstacleCells,
-		cv::Mat & emptyCells,
-		cv::Point3f & viewPointInOut) const
+		const LaserScan& scan,
+		const Transform& pose,
+		cv::Mat& groundCells,
+		cv::Mat& obstacleCells,
+		cv::Mat& undergroundCells,
+		cv::Mat& emptyCells,
+		cv::Point3f& viewPointInOut) const
 {
-	if(projMapFrame_)
-	{
+	if (projMapFrame_) {
 		//we should rotate viewPoint in /map frame
 		float roll, pitch, yaw;
 		pose.getEulerAngles(roll, pitch, yaw);
-		Transform viewpointRotated = Transform(0,0,0,roll,pitch,0) * Transform(viewPointInOut.x, viewPointInOut.y, viewPointInOut.z, 0,0,0);
+		auto viewpointRotated = Transform(0, 0, 0, roll, pitch, 0) * Transform(viewPointInOut.x, viewPointInOut.y, viewPointInOut.z, 0, 0, 0);
 		viewPointInOut.x = viewpointRotated.x();
 		viewPointInOut.y = viewpointRotated.y();
 		viewPointInOut.z = viewpointRotated.z();
 	}
 
-	if(scan.size())
-	{
-		pcl::IndicesPtr groundIndices(new std::vector<int>);
-		pcl::IndicesPtr obstaclesIndices(new std::vector<int>);
+	if (scan.size()) {
+		pcl::IndicesPtr groundIndices = boost::make_shared<std::vector<int>>();
+		pcl::IndicesPtr obstaclesIndices = boost::make_shared<std::vector<int>>();
+		pcl::IndicesPtr undergroundIndices = boost::make_shared<std::vector<int>>();
 		cv::Mat groundCloud;
 		cv::Mat obstaclesCloud;
+		cv::Mat undergroundCloud;
 
 		if(scan.hasRGB() && scan.hasNormals())
 		{
 			pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud = util3d::laserScanToPointCloudRGBNormal(scan, scan.localTransform());
-			pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZRGBNormal>(cloud, pcl::IndicesPtr(new std::vector<int>), pose, viewPointInOut, groundIndices, obstaclesIndices);
-			UDEBUG("groundIndices=%d, obstaclesIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size());
+			pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZRGBNormal>(cloud, boost::make_shared<std::vector<int>>(), pose, viewPointInOut, groundIndices, obstaclesIndices, undergroundIndices);
+			UDEBUG("groundIndices=%d, obstaclesIndices=%d, undergroundIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size(), (int)undergroundIndices->size());
 			if(grid3D_)
 			{
 				groundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, groundIndices);
 				obstaclesCloud = util3d::laserScanFromPointCloud(*cloudSegmented, obstaclesIndices);
+				undergroundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, undergroundIndices);
 			}
 			else
 			{
-				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZRGBNormal>(cloudSegmented, groundIndices, obstaclesIndices, groundCells, obstacleCells, cellSize_);
+				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZRGBNormal>(cloudSegmented, groundIndices, obstaclesIndices, undergroundIndices, groundCells, obstacleCells, undergroundCells, cellSize_);
 			}
 		}
 		else if(scan.hasRGB())
 		{
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud = util3d::laserScanToPointCloudRGB(scan, scan.localTransform());
-			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZRGB>(cloud, pcl::IndicesPtr(new std::vector<int>), pose, viewPointInOut, groundIndices, obstaclesIndices);
-			UDEBUG("groundIndices=%d, obstaclesIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size());
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZRGB>(cloud, boost::make_shared<std::vector<int>>(), pose, viewPointInOut, groundIndices, obstaclesIndices, undergroundIndices);
+			UDEBUG("groundIndices=%d, obstaclesIndices=%d, undergroundIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size(), (int)undergroundIndices->size());
 			if(grid3D_)
 			{
 				groundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, groundIndices);
 				obstaclesCloud = util3d::laserScanFromPointCloud(*cloudSegmented, obstaclesIndices);
+				undergroundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, undergroundIndices);
 			}
 			else
 			{
-				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZRGB>(cloudSegmented, groundIndices, obstaclesIndices, groundCells, obstacleCells, cellSize_);
+				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZRGB>(cloudSegmented, groundIndices, obstaclesIndices, undergroundIndices, groundCells, obstacleCells, undergroundCells, cellSize_);
 			}
 		}
 		else if(scan.hasNormals())
 		{
 			pcl::PointCloud<pcl::PointNormal>::Ptr cloud = util3d::laserScanToPointCloudNormal(scan, scan.localTransform());
-			pcl::PointCloud<pcl::PointNormal>::Ptr cloudSegmented = segmentCloud<pcl::PointNormal>(cloud, pcl::IndicesPtr(new std::vector<int>), pose, viewPointInOut, groundIndices, obstaclesIndices);
-			UDEBUG("groundIndices=%d, obstaclesIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size());
+			pcl::PointCloud<pcl::PointNormal>::Ptr cloudSegmented = segmentCloud<pcl::PointNormal>(cloud, boost::make_shared<std::vector<int>>(), pose, viewPointInOut, groundIndices, obstaclesIndices, undergroundIndices);
+			UDEBUG("groundIndices=%d, obstaclesIndices=%d, undergroundIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size(), (int)undergroundIndices->size());
 			if(grid3D_)
 			{
 				groundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, groundIndices);
 				obstaclesCloud = util3d::laserScanFromPointCloud(*cloudSegmented, obstaclesIndices);
+				undergroundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, undergroundIndices);
 			}
 			else
 			{
-				util3d::occupancy2DFromGroundObstacles<pcl::PointNormal>(cloudSegmented, groundIndices, obstaclesIndices, groundCells, obstacleCells, cellSize_);
+				util3d::occupancy2DFromGroundObstacles<pcl::PointNormal>(cloudSegmented, groundIndices, obstaclesIndices, undergroundIndices, groundCells, obstacleCells, undergroundCells, cellSize_);
 			}
 		}
 		else
 		{
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = util3d::laserScanToPointCloud(scan, scan.localTransform());
-			pcl::PointCloud<pcl::PointXYZ>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZ>(cloud, pcl::IndicesPtr(new std::vector<int>), pose, viewPointInOut, groundIndices, obstaclesIndices);
-			UDEBUG("groundIndices=%d, obstaclesIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size());
+			pcl::PointCloud<pcl::PointXYZ>::Ptr cloudSegmented = segmentCloud<pcl::PointXYZ>(cloud, boost::make_shared<std::vector<int>>(), pose, viewPointInOut, groundIndices, obstaclesIndices, undergroundIndices);
+			UDEBUG("groundIndices=%d, obstaclesIndices=%d, undergroundIndices=%d", (int)groundIndices->size(), (int)obstaclesIndices->size(), (int)undergroundIndices->size());
 			if(grid3D_)
 			{
 				groundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, groundIndices);
 				obstaclesCloud = util3d::laserScanFromPointCloud(*cloudSegmented, obstaclesIndices);
+				undergroundCloud = util3d::laserScanFromPointCloud(*cloudSegmented, undergroundIndices);
 			}
 			else
 			{
-				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZ>(cloudSegmented, groundIndices, obstaclesIndices, groundCells, obstacleCells, cellSize_);
+				util3d::occupancy2DFromGroundObstacles<pcl::PointXYZ>(cloudSegmented, groundIndices, obstaclesIndices, undergroundIndices, groundCells, obstacleCells, undergroundCells, cellSize_);
 			}
 		}
 
-		if(grid3D_ && (!obstaclesCloud.empty() || !groundCloud.empty()))
-		{
+		if (!grid3D_ && rayTracing_ && (!obstacleCells.empty() || !groundCells.empty() || !undergroundCells.empty())) {
+			cv::Mat laserScan = obstacleCells;
+			// TODO(deni.sukhonina): Add underground cells
+			cv::Mat laserScanNoHit = groundCells;
+			obstacleCells = cv::Mat();
+			groundCells = cv::Mat();
+			undergroundCells = cv::Mat();
+			util3d::occupancy2DFromLaserScan(
+					laserScan,
+					laserScanNoHit,
+					viewPointInOut,
+					emptyCells,
+					obstacleCells,
+					undergroundCells,
+					cellSize_,
+					false, // don't fill unknown space
+					cloudMaxDepth_);
+		} else if (grid3D_ && (!obstaclesCloud.empty() || !groundCloud.empty() || !undergroundCloud.empty())) {
 			UDEBUG("ground=%d obstacles=%d", groundCloud.cols, obstaclesCloud.cols);
-			if(groundIsObstacle_ && !groundCloud.empty())
-			{
-				if(obstaclesCloud.empty())
-				{
+			if (groundIsObstacle_ && !groundCloud.empty()) {
+				if (obstaclesCloud.empty()) {
 					obstaclesCloud = groundCloud;
 					groundCloud = cv::Mat();
-				}
-				else
-				{
+				} else {
 					UASSERT(obstaclesCloud.type() == groundCloud.type());
-					cv::Mat merged(1,obstaclesCloud.cols+groundCloud.cols, obstaclesCloud.type());
+					cv::Mat merged(1, obstaclesCloud.cols+groundCloud.cols, obstaclesCloud.type());
 					obstaclesCloud.copyTo(merged(cv::Range::all(), cv::Range(0, obstaclesCloud.cols)));
 					groundCloud.copyTo(merged(cv::Range::all(), cv::Range(obstaclesCloud.cols, obstaclesCloud.cols+groundCloud.cols)));
 				}
@@ -521,71 +540,16 @@ void OccupancyGrid::createLocalMap(
 			// transform back in base frame
 			float roll, pitch, yaw;
 			pose.getEulerAngles(roll, pitch, yaw);
-			Transform tinv = Transform(0,0, projMapFrame_?pose.z():0, roll, pitch, 0).inverse();
+			Transform tinv = Transform(0, 0, projMapFrame_ ? pose.z() : 0, roll, pitch, 0).inverse();
 
-			if(rayTracing_)
-			{
-#ifdef RTABMAP_OCTOMAP
-				if(!groundCloud.empty() || !obstaclesCloud.empty())
-				{
-					//create local octomap
-					OctoMap octomap(cellSize_);
-					octomap.setMaxRange(cloudMaxDepth_);
-					octomap.addToCache(1, groundCloud, obstaclesCloud, cv::Mat(), cv::Point3f(viewPointInOut.x, viewPointInOut.y, viewPointInOut.z));
-					std::map<int, Transform> poses;
-					poses.insert(std::make_pair(1, Transform::getIdentity()));
-					octomap.update(poses);
+			UWARN("RTAB-Map is not built with OctoMap dependency, 3D ray tracing is ignored. Set \"%s\" to false to avoid this warning.", Parameters::kGridRayTracing().c_str());
 
-					pcl::IndicesPtr groundIndices(new std::vector<int>);
-					pcl::IndicesPtr obstaclesIndices(new std::vector<int>);
-					pcl::IndicesPtr emptyIndices(new std::vector<int>);
-					pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudWithRayTracing = octomap.createCloud(0, obstaclesIndices.get(), emptyIndices.get(), groundIndices.get());
-					UDEBUG("ground=%d obstacles=%d empty=%d", (int)groundIndices->size(), (int)obstaclesIndices->size(), (int)emptyIndices->size());
-					if(scan.hasRGB())
-					{
-						groundCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing, groundIndices, tinv);
-						obstacleCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing, obstaclesIndices, tinv);
-						emptyCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing, emptyIndices, tinv);
-					}
-					else
-					{
-						pcl::PointCloud<pcl::PointXYZ>::Ptr cloudWithRayTracing2(new pcl::PointCloud<pcl::PointXYZ>);
-						pcl::copyPointCloud(*cloudWithRayTracing, *cloudWithRayTracing2);
-						groundCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing2, groundIndices, tinv);
-						obstacleCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing2, obstaclesIndices, tinv);
-						emptyCells = util3d::laserScanFromPointCloud(*cloudWithRayTracing2, emptyIndices, tinv);
-					}
-				}
-			}
-			else
-#else
-					UWARN("RTAB-Map is not built with OctoMap dependency, 3D ray tracing is ignored. Set \"%s\" to false to avoid this warning.", Parameters::kGridRayTracing().c_str());
-				}
-#endif
-			{
-				groundCells = util3d::transformLaserScan(LaserScan::backwardCompatibility(groundCloud), tinv).data();
-				obstacleCells = util3d::transformLaserScan(LaserScan::backwardCompatibility(obstaclesCloud), tinv).data();
-			}
-
-		}
-		else if(!grid3D_ && rayTracing_ && (!obstacleCells.empty() || !groundCells.empty()))
-		{
-			cv::Mat laserScan = obstacleCells;
-			cv::Mat laserScanNoHit = groundCells;
-			obstacleCells = cv::Mat();
-			groundCells = cv::Mat();
-			util3d::occupancy2DFromLaserScan(
-					laserScan,
-					laserScanNoHit,
-					viewPointInOut,
-					emptyCells,
-					obstacleCells,
-					cellSize_,
-					false, // don't fill unknown space
-					cloudMaxDepth_);
+			groundCells = util3d::transformLaserScan(LaserScan::backwardCompatibility(groundCloud), tinv).data();
+			obstacleCells = util3d::transformLaserScan(LaserScan::backwardCompatibility(obstaclesCloud), tinv).data();
+			undergroundCells = util3d::transformLaserScan(LaserScan::backwardCompatibility(undergroundCloud), tinv).data();
 		}
 	}
-	UDEBUG("ground=%d obstacles=%d empty=%d, channels=%d", groundCells.cols, obstacleCells.cols, emptyCells.cols, obstacleCells.cols?obstacleCells.channels():groundCells.channels());
+	UDEBUG("ground=%d obstacles=%d underground=%d empty=%d, channels=%d", groundCells.cols, obstacleCells.cols, undergroundCells.cols, emptyCells.cols, obstacleCells.cols?obstacleCells.channels():groundCells.channels());
 }
 
 void OccupancyGrid::clear()
@@ -611,25 +575,18 @@ cv::Mat OccupancyGrid::getMap(float & xMin, float & yMin) const
 	UTimer t;
 	if(occupancyThr_ != 0.0f && !map.empty())
 	{
-		float occThr = logodds(occupancyThr_);
+		const float occThr = logodds(occupancyThr_);
 		map = cv::Mat(map.size(), map.type());
 		UASSERT(mapInfo_.cols == map.cols && mapInfo_.rows == map.rows);
-		for(int i=0; i<map.rows; ++i)
-		{
-			for(int j=0; j<map.cols; ++j)
-			{
-				const float * info = mapInfo_.ptr<float>(i, j);
-				if(info[3] == 0.0f)
-				{
-					map.at<char>(i, j) = -1; // unknown
-				}
-				else if(info[3] >= occThr)
-				{
-					map.at<char>(i, j) = 100; // unknown
-				}
-				else
-				{
-					map.at<char>(i, j) = 0; // empty
+		for (int i = 0; i < map.rows; ++i) {
+			for (int j = 0; j < map.cols; ++j) {
+				const auto& info = mapInfo_.at<cv::Vec<const float, 5>>(i, j);
+				if (info[3] == 0.0f) {
+					map.at<char>(i, j) = kUnknown;
+				}	else if (info[3] >= occThr) {
+					map.at<char>(i, j) = info[4] > 0 ? kOccupied : kUnderground;
+				}	else {
+					map.at<char>(i, j) = kFree;
 				}
 			}
 		}
@@ -657,14 +614,11 @@ cv::Mat OccupancyGrid::getProbMap(float & xMin, float & yMin) const
 		{
 			for(int j=0; j<map.cols; ++j)
 			{
-				const float * info = mapInfo_.ptr<float>(i, j);
-				if(info[3] == 0.0f)
-				{
-					map.at<char>(i, j) = -1; // unknown
-				}
-				else
-				{
-					map.at<char>(i, j) = char(probability(info[3])*100.0f); // empty
+				const auto& info = mapInfo_.at<cv::Vec<const float, 5>>(i, j);
+				if (info[3] == 0.0f) {
+					map.at<char>(i, j) = kUnknown;
+				} else {
+					map.at<char>(i, j) = static_cast<char>(probability(info[3]) * 100.0f);
 				}
 			}
 		}
@@ -710,43 +664,37 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 	for(std::map<int, Transform>::iterator iter=addedNodes_.begin(); iter!=addedNodes_.end(); ++iter)
 	{
 		std::map<int, Transform>::const_iterator jter = posesIn.find(iter->first);
-		if(jter != posesIn.end())
-		{
-			graphChanged = false;
-
-			UASSERT(!iter->second.isNull() && !jter->second.isNull());
-			Transform t = Transform::getIdentity();
-			if(iter->second.getDistanceSquared(jter->second) > updateErrorSqrd)
-			{
-				t = jter->second * iter->second.inverse();
-				graphOptimized = true;
-			}
-			transforms.insert(std::make_pair(jter->first, t));
-
-			float x = jter->second.x();
-			float y  =jter->second.y();
-			if(undefinedSize)
-			{
-				minX = maxX = x;
-				minY = maxY = y;
-				undefinedSize = false;
-			}
-			else
-			{
-				if(minX > x)
-					minX = x;
-				else if(maxX < x)
-					maxX = x;
-
-				if(minY > y)
-					minY = y;
-				else if(maxY < y)
-					maxY = y;
-			}
-		}
-		else
-		{
+		if (jter == posesIn.end()) {
 			UDEBUG("Updated pose for node %d is not found, some points may not be copied if graph has changed.", iter->first);
+			continue;
+		}
+
+		graphChanged = false;
+
+		UASSERT(!iter->second.isNull() && !jter->second.isNull());
+		Transform t = Transform::getIdentity();
+		if (iter->second.getDistanceSquared(jter->second) > updateErrorSqrd) {
+			t = jter->second * iter->second.inverse();
+			graphOptimized = true;
+		}
+		transforms.emplace(jter->first, std::move(t));
+
+		float x = jter->second.x();
+		float y = jter->second.y();
+		if (undefinedSize) {
+			minX = maxX = x;
+			minY = maxY = y;
+			undefinedSize = false;
+		} else {
+			if (minX > x)
+				minX = x;
+			else if (maxX < x)
+				maxX = x;
+
+			if (minY > y)
+				minY = y;
+			else if (maxY < y)
+				maxY = y;
 		}
 	}
 
@@ -777,26 +725,23 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 			UASSERT(map_.cols == mapInfo_.cols &&
 					map_.rows == mapInfo_.rows);
 			std::map<int, std::pair<int, int> > tmpIndices;
-			for(std::map<int, std::pair<int, int> >::iterator iter=cellCount_.begin(); iter!=cellCount_.end(); ++iter)
-			{
+			for (auto iter = cellCount_.begin(); iter != cellCount_.end(); ++iter) {
 				if(!uContains(cache_, iter->first) && transforms.find(iter->first) != transforms.end())
 				{
-					if(iter->second.first)
-					{
-						emptyLocalMaps.insert(std::make_pair( iter->first, cv::Mat(1, iter->second.first, CV_32FC2)));
+					if (iter->second.first) {
+						emptyLocalMaps.emplace(iter->first, cv::Mat(1, iter->second.first, CV_32FC2));
 					}
-					if(iter->second.second)
-					{
-						occupiedLocalMaps.insert(std::make_pair( iter->first, cv::Mat(1, iter->second.second, CV_32FC2)));
+					if (iter->second.second) {
+						occupiedLocalMaps.emplace(iter->first, cv::Mat(1, iter->second.second, CV_32FC2));
 					}
-					tmpIndices.insert(std::make_pair(iter->first, std::make_pair(0,0)));
+					tmpIndices.emplace(iter->first, std::make_pair(0, 0));
 				}
 			}
 			for(int y=0; y<map_.rows; ++y)
 			{
 				for(int x=0; x<map_.cols; ++x)
 				{
-					float * info = mapInfo_.ptr<float>(y,x);
+					auto& info = mapInfo_.at<MapInfoElement>(y, x);
 					int nodeId = (int)info[0];
 					if(nodeId > 0 && map_.at<char>(y,x) >= 0)
 					{
@@ -834,7 +779,6 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 								// obstacle
 								std::map<int, cv::Mat>::iterator iter = occupiedLocalMaps.find(nodeId);
 								UASSERT(iter != occupiedLocalMaps.end());
-								UASSERT(iter!=occupiedLocalMaps.end());
 								UASSERT(jter->second.second < iter->second.cols);
 								float * ptf = iter->second.ptr<float>(0,jter->second.second++);
 								ptf[0] = pt.x;
@@ -1098,7 +1042,7 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 				{
 					UDEBUG("Map empty!");
 					map = cv::Mat::ones(newMapSize, CV_8S)*-1;
-					mapInfo = cv::Mat::zeros(newMapSize, CV_32FC4);
+					mapInfo = cv::Mat::zeros(newMapSize, CV_32FC(5));
 				}
 				else
 				{
@@ -1161,9 +1105,8 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 					std::map<int, cv::Mat >::iterator iter = emptyLocalMaps.find(kter->first);
 					std::map<int, cv::Mat >::iterator jter = occupiedLocalMaps.find(kter->first);
 					std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(kter->first);
-					if(cter == cellCount_.end() && kter->first > 0)
-					{
-						cter = cellCount_.insert(std::make_pair(kter->first, std::pair<int,int>(0,0))).first;
+					if (cter == cellCount_.end() && kter->first > 0) {
+						cter = cellCount_.emplace(kter->first, std::make_pair(0, 0)).first;
 					}
 					if(iter!=emptyLocalMaps.end())
 					{
@@ -1177,7 +1120,7 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 							char & value = map.at<char>(pt.y, pt.x);
 							if(value != -2 && (!incrementalGraphUpdate || value==-1))
 							{
-								float * info = mapInfo.ptr<float>(pt.y, pt.x);
+								auto& info = mapInfo.at<MapInfoElement>(pt.y, pt.x);
 								int nodeId = (int)info[0];
 								if(value != -1)
 								{
@@ -1188,15 +1131,16 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 									}
 									if(nodeId > 0)
 									{
-										std::map<int, std::pair<int, int> >::iterator eter = cellCount_.find(nodeId);
+										auto eter = cellCount_.find(nodeId);
 										UASSERT_MSG(eter != cellCount_.end(), uFormat("current pose=%d nodeId=%d", kter->first, nodeId).c_str());
-										if(value == 0)
-										{
-											eter->second.first -= 1;
-										}
-										else if(value == 100)
-										{
-											eter->second.second -= 1;
+										switch (value) {
+											case kFree:
+												eter->second.first -= 1;
+												break;
+											case kOccupied:
+											case kUnderground:
+												eter->second.second -= 1;
+												break;
 										}
 										if(kter->first < 0)
 										{
@@ -1250,7 +1194,7 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 							{
 								UASSERT(j < map.rows && i < map.cols);
 								char & value = map.at<char>(j, i);
-								float * info = mapInfo.ptr<float>(j, i);
+								auto& info = mapInfo.at<MapInfoElement>(j, i);
 								int nodeId = (int)info[0];
 								if(value != -1)
 								{
@@ -1261,19 +1205,20 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 									}
 									if(nodeId>0)
 									{
-										std::map<int, std::pair<int, int> >::iterator eter = cellCount_.find(nodeId);
+										auto eter = cellCount_.find(nodeId);
 										UASSERT_MSG(eter != cellCount_.end(), uFormat("current pose=%d nodeId=%d", kter->first, nodeId).c_str());
-										if(value == 0)
-										{
-											eter->second.first -= 1;
-										}
-										else if(value == 100)
-										{
-											eter->second.second -= 1;
+										switch (value) {
+											case kFree:
+												eter->second.first -= 1;
+												break;
+											case kOccupied:
+											case kUnderground:
+												eter->second.second -= 1;
+												break;
 										}
 										if(kter->first < 0)
 										{
-											eter->second.first += 1;
+											eter->second.second += 1;
 										}
 									}
 								}
@@ -1301,7 +1246,7 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 							char & value = map.at<char>(pt.y, pt.x);
 							if(value != -2)
 							{
-								float * info = mapInfo.ptr<float>(pt.y, pt.x);
+								auto& info = mapInfo.at<MapInfoElement>(pt.y, pt.x);
 								int nodeId = (int)info[0];
 								if(value != -1)
 								{
@@ -1312,15 +1257,16 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 									}
 									if(nodeId>0)
 									{
-										std::map<int, std::pair<int, int> >::iterator eter = cellCount_.find(nodeId);
+										auto eter = cellCount_.find(nodeId);
 										UASSERT_MSG(eter != cellCount_.end(), uFormat("current pose=%d nodeId=%d", kter->first, nodeId).c_str());
-										if(value == 0)
-										{
-											eter->second.first -= 1;
-										}
-										else if(value == 100)
-										{
-											eter->second.second -= 1;
+										switch (value) {
+											case kFree:
+												eter->second.first -= 1;
+												break;
+											case kOccupied:
+											case kUnderground:
+												eter->second.second -= 1;
+												break;
 										}
 										if(kter->first < 0)
 										{
@@ -1370,53 +1316,47 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 
 							if(incrementalGraphUpdate && value == -1)
 							{
-								float * info = mapInfo.ptr<float>(i, j);
+								auto& info = mapInfo.at<MapInfoElement>(i, j);
 
 								// fill obstacle
 								if(map.at<char>(i+1, j) == 100 && map.at<char>(i-1, j) == 100)
 								{
 									value = 100;
 									// associate with the nearest pose
-									if(mapInfo.ptr<float>(i+1, j)[0]>0.0f)
-									{
-										info[0] = mapInfo.ptr<float>(i+1, j)[0];
+									if (mapInfo.at<MapInfoElement>(i + 1, j)[0] > 0.0f) {
+										info[0] = mapInfo.at<MapInfoElement>(i + 1, j)[0];
 										info[1] = float(j) * cellSize_ + xMin;
 										info[2] = float(i) * cellSize_ + yMin;
-										std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-										UASSERT(cter!=cellCount_.end());
-										cter->second.second+=1;
-									}
-									else if(mapInfo.ptr<float>(i-1, j)[0]>0.0f)
-									{
-										info[0] = mapInfo.ptr<float>(i-1, j)[0];
+										auto cter = cellCount_.find(int(info[0]));
+										UASSERT(cter != cellCount_.end());
+										++cter->second.second;
+									} else if (mapInfo.at<MapInfoElement>(i - 1, j)[0] > 0.0f) {
+										info[0] = mapInfo.at<MapInfoElement>(i - 1, j)[0];
 										info[1] = float(j) * cellSize_ + xMin;
 										info[2] = float(i) * cellSize_ + yMin;
-										std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-										UASSERT(cter!=cellCount_.end());
-										cter->second.second+=1;
+										auto cter = cellCount_.find(int(info[0]));
+										UASSERT(cter != cellCount_.end());
+										++cter->second.second;
 									}
 								}
 								else if(map.at<char>(i, j+1) == 100 && map.at<char>(i, j-1) == 100)
 								{
 									value = 100;
 									// associate with the nearest pose
-									if(mapInfo.ptr<float>(i, j+1)[0]>0.0f)
-									{
-										info[0] = mapInfo.ptr<float>(i, j+1)[0];
+									if (mapInfo.at<MapInfoElement>(i, j + 1)[0] > 0.0f) {
+										info[0] = mapInfo.at<MapInfoElement>(i, j+1)[0];
 										info[1] = float(j) * cellSize_ + xMin;
 										info[2] = float(i) * cellSize_ + yMin;
-										std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-										UASSERT(cter!=cellCount_.end());
-										cter->second.second+=1;
-									}
-									else if(mapInfo.ptr<float>(i, j-1)[0]>0.0f)
-									{
-										info[0] = mapInfo.ptr<float>(i, j-1)[0];
+										auto cter = cellCount_.find(int(info[0]));
+										UASSERT(cter != cellCount_.end());
+										++cter->second.second;
+									} else if (mapInfo.at<MapInfoElement>(i, j - 1)[0] > 0.0f) {
+										info[0] = mapInfo.at<MapInfoElement>(i, j - 1)[0];
 										info[1] = float(j) * cellSize_ + xMin;
 										info[2] = float(i) * cellSize_ + yMin;
-										std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-										UASSERT(cter!=cellCount_.end());
-										cter->second.second+=1;
+										auto cter = cellCount_.find(int(info[0]));
+										UASSERT(cter != cellCount_.end());
+										++cter->second.second;
 									}
 								}
 								else
@@ -1430,29 +1370,26 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 									{
 										value = 0;
 										// associate with the nearest pose, only check two cases (as 3 are required)
-										if(map.at<char>(i+1, j) != -1 && mapInfo.ptr<float>(i+1, j)[0]>0.0f)
-										{
-											info[0] = mapInfo.ptr<float>(i+1, j)[0];
+										if (map.at<char>(i+1, j) != -1 && mapInfo.at<MapInfoElement>(i + 1, j)[0] > 0.0f) {
+											info[0] = mapInfo.at<MapInfoElement>(i + 1, j)[0];
 											info[1] = float(j) * cellSize_ + xMin;
 											info[2] = float(i) * cellSize_ + yMin;
-											std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-											UASSERT(cter!=cellCount_.end());
-											cter->second.first+=1;
-										}
-										else if(map.at<char>(i-1, j) != -1 && mapInfo.ptr<float>(i-1, j)[0]>0.0f)
-										{
-											info[0] = mapInfo.ptr<float>(i-1, j)[0];
+											auto cter = cellCount_.find(int(info[0]));
+											UASSERT(cter != cellCount_.end());
+											++cter->second.first;
+										} else if (map.at<char>(i-1, j) != -1 && mapInfo.at<MapInfoElement>(i - 1, j)[0] > 0.0f) {
+											info[0] = mapInfo.at<MapInfoElement>(i - 1, j)[0];
 											info[1] = float(j) * cellSize_ + xMin;
 											info[2] = float(i) * cellSize_ + yMin;
-											std::map<int, std::pair<int, int> >::iterator cter = cellCount_.find(int(info[0]));
-											UASSERT(cter!=cellCount_.end());
-											cter->second.first+=1;
+											auto cter = cellCount_.find(int(info[0]));
+											UASSERT(cter != cellCount_.end());
+											++cter->second.first;
 										}
 									}
 								}
 							}
 
-							//float * info = mapInfo.ptr<float>(i,j);
+							//const auto& info = mapInfo.at<cv::Vec<const float, 5>>(i,j);
 							//if(info[0] > 0)
 							//{
 							//	cloud->at(oi).x = info[1];
@@ -1475,15 +1412,11 @@ bool OccupancyGrid::update(const std::map<int, Transform> & posesIn)
 				yMin_ = yMin;
 
 				// clean cellCount_
-				for(std::map<int, std::pair<int, int> >::iterator iter= cellCount_.begin(); iter!=cellCount_.end();)
-				{
+				for (auto iter = cellCount_.begin(); iter != cellCount_.end(); ) {
 					UASSERT(iter->second.first >= 0 && iter->second.second >= 0);
-					if(iter->second.first == 0 && iter->second.second == 0)
-					{
-						cellCount_.erase(iter++);
-					}
-					else
-					{
+					if(iter->second.first == 0 && iter->second.second == 0)	{
+						iter = cellCount_.erase(iter);
+					}	else	{
 						++iter;
 					}
 				}

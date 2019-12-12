@@ -51,6 +51,7 @@ void occupancy2DFromLaserScan(
 		const cv::Mat & scan,
 		cv::Mat & empty,
 		cv::Mat & occupied,
+		cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled,
 		float scanMaxRange)
@@ -62,6 +63,7 @@ void occupancy2DFromLaserScan(
 			viewpoint,
 			empty,
 			occupied,
+			underground,
 			cellSize,
 			unknownSpaceFilled,
 			scanMaxRange);
@@ -72,11 +74,12 @@ void occupancy2DFromLaserScan(
 		const cv::Point3f & viewpoint,
 		cv::Mat & empty,
 		cv::Mat & occupied,
+		cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled,
 		float scanMaxRange)
 {
-	occupancy2DFromLaserScan(scan, cv::Mat(), viewpoint, empty, occupied, cellSize, unknownSpaceFilled, scanMaxRange);
+	occupancy2DFromLaserScan(scan, cv::Mat(), viewpoint, empty, occupied, underground, cellSize, unknownSpaceFilled, scanMaxRange);
 }
 
 void occupancy2DFromLaserScan(
@@ -85,6 +88,7 @@ void occupancy2DFromLaserScan(
 		const cv::Point3f & viewpoint,
 		cv::Mat & empty,
 		cv::Mat & occupied,
+		cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled,
 		float scanMaxRange)
@@ -144,6 +148,7 @@ void occupancy2DFromLaserScan(
 	}
 }
 
+// AVIDBOTS: OctoMap only
 /**
  * Create 2d Occupancy grid (CV_8S) from 2d occupancy
  * -1 = unknown
@@ -868,24 +873,16 @@ void rayTrace(const cv::Point2i & start, const cv::Point2i & end, cv::Mat & grid
 			UASSERT_MSG(upperbound >= 0 && upperbound < grid.cols, uFormat("upperbound=%f grid.cols=%d x+1=%d slope=%f b=%f x=%f", upperbound, grid.cols, x+1, slope, b, x).c_str());
 		}
 
-		for(int y = lowerbound; y<=(int)upperbound; ++y)
-		{
-			char * v;
-			if(swapped)
-			{
-				v = &grid.at<char>(x, y);
-			}
-			else
-			{
-				v = &grid.at<char>(y, x);
-			}
-			if(*v == 100 && stopOnObstacle)
-			{
+		for (int y = lowerbound; y <= upperbound; ++y) {
+			char& v = swapped
+								? grid.at<char>(x, y)
+								: grid.at<char>(y, x);
+			if (v == 100 && stopOnObstacle) {
 				return;
-			}
-			else
-			{
-				*v = 0; // free space
+			} else if (v == -1) {
+				continue;
+			} else {
+				v = 0; // free space
 			}
 		}
 	}

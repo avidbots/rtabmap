@@ -47,6 +47,7 @@ RTABMAP_DEPRECATED(void RTABMAP_EXP occupancy2DFromLaserScan(
 		const cv::Mat & scan, // in /base_link frame
 		cv::Mat & empty,
 		cv::Mat & occupied,
+                cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled = false,
 		float scanMaxRange = 0.0f), "Use interface with \"viewpoint\" parameter to make sure the ray tracing origin is from the sensor and not the base.");
@@ -56,6 +57,7 @@ RTABMAP_DEPRECATED(void RTABMAP_EXP occupancy2DFromLaserScan(
 		const cv::Point3f & viewpoint, // /base_link -> /base_scan
 		cv::Mat & empty,
 		cv::Mat & occupied,
+                cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled = false,
 		float scanMaxRange = 0.0f), "Use interface with scanHit/scanNoHit parameters: scanNoHit set to null matrix has the same functionality than this method.");
@@ -66,6 +68,7 @@ void RTABMAP_EXP occupancy2DFromLaserScan(
 		const cv::Point3f & viewpoint, // /base_link -> /base_scan
 		cv::Mat & empty,
 		cv::Mat & occupied,
+                cv::Mat & underground,
 		float cellSize,
 		bool unknownSpaceFilled = false,
 		float scanMaxRange = 0.0f); // would be set if unknownSpaceFilled=true
@@ -130,6 +133,7 @@ void segmentObstaclesFromGround(
 		const pcl::IndicesPtr & indices,
 		pcl::IndicesPtr & ground,
 		pcl::IndicesPtr & obstacles,
+		pcl::IndicesPtr & underground,
 		int normalKSearch,
 		float groundNormalAngle,
 		float clusterRadius,
@@ -143,6 +147,7 @@ void segmentObstaclesFromGround(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		pcl::IndicesPtr & ground,
 		pcl::IndicesPtr & obstacles,
+		pcl::IndicesPtr & underground,
 		int normalKSearch,
 		float groundNormalAngle,
 		float clusterRadius,
@@ -157,16 +162,20 @@ void occupancy2DFromGroundObstacles(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		const pcl::IndicesPtr & groundIndices,
 		const pcl::IndicesPtr & obstaclesIndices,
+		const pcl::IndicesPtr & undergroundIndices,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize);
 
 template<typename PointT>
 void occupancy2DFromGroundObstacles(
 		const typename pcl::PointCloud<PointT>::Ptr & groundCloud,
 		const typename pcl::PointCloud<PointT>::Ptr & obstaclesCloud,
+		const typename pcl::PointCloud<PointT>::Ptr & undergroundCloud,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize);
 
 template<typename PointT>
@@ -174,6 +183,7 @@ void occupancy2DFromCloud3D(
 		const typename pcl::PointCloud<PointT>::Ptr & cloud,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize = 0.05f,
 		float groundNormalAngle = M_PI_4,
 		int minClusterSize = 20,
@@ -185,6 +195,7 @@ void occupancy2DFromCloud3D(
 		const pcl::IndicesPtr & indices,
 		cv::Mat & ground,
 		cv::Mat & obstacles,
+		cv::Mat & underground,
 		float cellSize = 0.05f,
 		float groundNormalAngle = M_PI_4,
 		int minClusterSize = 20,

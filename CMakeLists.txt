@@ -4,6 +4,12 @@ cmake_minimum_required(VERSION 2.8.5)
 PROJECT( RTABMap )
 SET(PROJECT_PREFIX rtabmap)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2 -march=core2 -mtune=sandybridge")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -march=core2 -mtune=sandybridge -ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
+
 # Catkin doesn't support multiarch library path, 
 # fix to "lib" if not set by user.
 OPTION(MULTI_ARCH "Activate multi-arch lib directory (debian)" OFF)
@@ -152,21 +158,21 @@ ENDIF(ANDROID_PREBUILD)
 IF(APPLE OR WIN32)
     OPTION(BUILD_AS_BUNDLE "Set to ON to build as bundle with all embedded dependencies (DragNDrop for Mac, installer for Windows)" OFF)
 ENDIF(APPLE OR WIN32)
-OPTION(BUILD_APP "Build main application" ON)
+OPTION(BUILD_APP "Build main application" OFF)
 OPTION(BUILD_TOOLS "Build tools" ON)
-OPTION(BUILD_EXAMPLES "Build examples" ON)
+OPTION(BUILD_EXAMPLES "Build examples" OFF)
 
 ####### DEPENDENCIES #######
 IF(ANDROID)
 option(WITH_QT            "Include Qt support"                   OFF)
 ELSE()
-option(WITH_QT            "Include Qt support"                   ON)
+option(WITH_QT            "Include Qt support"                   OFF)
 ENDIF()
 option(WITH_ORB_OCTREE    "Include ORB Octree feature support"   ON)
 option(WITH_FREENECT      "Include Freenect support"             ON)
 option(WITH_FREENECT2     "Include Freenect2 support"            ON)
-option(WITH_K4W2          "Include Kinect for Windows v2 support" ON)
-option(WITH_K4A           "Include Kinect for Azure support"     ON)
+option(WITH_K4W2          "Include Kinect for Windows v2 support" OFF)
+option(WITH_K4A           "Include Kinect for Azure support"     OFF)
 option(WITH_OPENNI2       "Include OpenNI2 support"              ON)
 option(WITH_DC1394        "Include dc1394 support"               ON)
 option(WITH_G2O           "Include g2o support"                  ON)
@@ -179,13 +185,13 @@ option(WITH_POINTMATCHER  "Include libpointmatcher support"      ON)
 option(WITH_LOAM          "Include LOAM support"                 ON)
 option(WITH_FLYCAPTURE2   "Include FlyCapture2/Triclops support" ON)
 option(WITH_ZED           "Include ZED sdk support"              ON)
-option(WITH_REALSENSE     "Include RealSense support"            ON)
-option(WITH_REALSENSE_SLAM "Include RealSenseSlam support"       ON)
-option(WITH_REALSENSE2    "Include RealSense support"            ON)
-option(WITH_OCTOMAP       "Include Octomap support"              ON)
+option(WITH_REALSENSE     "Include RealSense support"            OFF)
+option(WITH_REALSENSE_SLAM "Include RealSenseSlam support"       OFF)
+option(WITH_REALSENSE2    "Include RealSense support"            OFF)
+option(WITH_OCTOMAP       "Include Octomap support"              OFF)
 option(WITH_CPUTSDF       "Include CPUTSDF support"              ON)
 option(WITH_OPENCHISEL    "Include open_chisel support"          ON)
-option(WITH_ALICE_VISION  "Include AliceVision support"          ON)
+option(WITH_ALICE_VISION  "Include AliceVision support"          OFF)
 option(WITH_FOVIS         "Include FOVIS support"                ON)
 option(WITH_VISO2         "Include VISO2 support"                ON)
 option(WITH_DVO           "Include DVO support"                  ON)
@@ -564,44 +570,6 @@ IF(WITH_ORB_SLAM2 AND NOT G2O_FOUND)
        ENDIF()
     ENDIF(ORB_SLAM2_FOUND)
 ENDIF(WITH_ORB_SLAM2 AND NOT G2O_FOUND)
-
-IF(loam_velodyne_FOUND)
-   #LOAM requires c++14
-   IF(NOT MSVC)
-     include(CheckCXXCompilerFlag)
-      CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
-      IF(COMPILER_SUPPORTS_CXX14)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-      ELSE()
-        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler if you want to use LOAM (set \"-DWITH_LOAM=OFF\" to build without LOAM).")
-      ENDIF()
-   ENDIF()
-ELSEIF(G2O_FOUND OR 
-       GTSAM_FOUND OR 
-       CERES_FOUND OR
-       ZED_FOUND OR 
-       ANDROID OR 
-       RealSense_FOUND OR 
-       realsense2_FOUND OR 
-       ORB_SLAM2_FOUND OR 
-       okvis_FOUND OR 
-       open_chisel_FOUND OR 
-       msckf_vio_FOUND OR 
-       vins_FOUND)
-   #Newest versions require std11
-   IF(NOT MSVC)
-     include(CheckCXXCompilerFlag)
-      CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-      CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-      IF(COMPILER_SUPPORTS_CXX11)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-      ELSEIF(COMPILER_SUPPORTS_CXX0X)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-      ELSE()
-        message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-      ENDIF()
-   ENDIF()
-ENDIF()
 
 ####### OSX BUNDLE CMAKE_INSTALL_PREFIX #######
 IF(APPLE AND BUILD_AS_BUNDLE)
